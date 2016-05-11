@@ -28,7 +28,7 @@ Please note the ``/home/vilfredo/vilfredo-client/static/templates/analytics.temp
 
 Now you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/vilfredo/vilfredo-vr.log`` for more information.
 
-If you want to delete a Vilfredo instance together with all of its data, download the ``scripts/delinstance`` script, make it executable with ``chmod +x addinstance`` and run it.
+If you want to delete a Vilfredo instance together with all of its data, download the ``scripts/delinstance`` script, make it executable with ``chmod +x delinstance`` and run it.
 
 ==========================================================
 Additional instructions for web server administrators only
