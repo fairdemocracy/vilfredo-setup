@@ -430,7 +430,18 @@ fi
 ###########################################################
 if [ ! -f "/etc/cron.monthly/letsencrypt" ]; then
   echo "Adding cron job to automatically renew SSL certificates..."
-  sudo echo "/usr/local/letsencrypt/letsencrypt-auto renew" > /etc/cron.monthly/letsencrypt
+  sudo cat > /etc/cron.monthly/letsencrypt <<EOF
+#!/bin/sh
+service nginx stop
+/usr/local/letsencrypt/letsencrypt-auto renew -nvv --standalone > /var/log/letsencrypt/renew.log 2>&1
+LE_STATUS=$?
+service nginx start
+if [ "$LE_STATUS" != 0 ]; then
+  echo Automated renewal failed:
+  cat /var/log/letsencrypt/renew.log
+  exit 1
+fi
+EOF
   sudo chmod 700 /etc/cron.monthly/letsencrypt
 fi
 
@@ -441,7 +452,7 @@ fi
 # but that's the easiest solution at the moment
 echo "Adding script to automatically update code from repository $BRANCH..."
 sudo -u $NAME mkdir /home/$NAME/bin
-sudo cat /home/$NAME/bin/checkout <<EOF
+sudo cat > /home/$NAME/bin/checkout <<EOF
 sudo -u $NAME git -C /home/$NAME/vilfredo-core checkout
 sudo -u $NAME git -C /home/$NAME/vilfredo-client checkout
 EOF
