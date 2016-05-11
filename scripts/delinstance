@@ -1,0 +1,87 @@
+#!/bin/bash
+################################################
+# Vilfredo easy uninstallation script
+# Developed by massimiliano.alessandri@gmail.com
+# Released under Affero General Public License
+################################################
+if [ ! -x "/usr/bin/dialog" ]; then
+  echo "This script requires the \"dialog\" package to be installed"
+  echo "Please install it with the command \"sudo apt-get install dialog\"."
+  exit
+fi
+
+if [ ! -x "/usr/bin/sudo" ]; then
+  dialog --title 'Sudo command not found' --msgbox 'The "sudo" program must be installed in order to proceed.\nPlease install it with the following command:\n\napt-get install sudo' 9 70
+  exit
+fi
+
+dialog --backtitle 'Vilfredo instance removal procedure' --yesno 'This procedure removes all traces of a Vilfredo instance on the server.\nIt can be useful to remove tests or wrong installations.\nNote: All data will be deleted!\nThis will not uninstall any Debian package.\nWould you like to continue?' 11 70
+if [ "$?" != "0" ]; then
+  exit
+fi
+
+####################
+# Request parameters
+####################
+NAME=$(dialog --backtitle 'Vilfredo instance removal procedure' --inputbox "Please enter the name of the instance to be deleted." 7 70 --output-fd 1)
+
+if [ "$NAME" == "" ]; then
+  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Empty instance name' --msgbox "The name of the instance to be deleted has not been specified.\nAborting uninstallation procedure." 7 70
+  exit
+fi
+
+if [ ! -d "/home/$NAME" ]; then
+  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Instance does not exist!' --msgbox "The specified instance does not likely exist.\nPlease double check its name and try again." 7 70
+  exit
+fi
+
+MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo instance removal procedure' --title 'MySQL root password' --clear --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
+
+case $? in
+  1)
+    exit;;
+  255)
+    exit;;
+esac
+
+dialog --backtitle 'Vilfredo instance removal procedure' --title "Instance deletion in progress" --infobox "Please wait while instance is removed from the system.\n\nThis could require a while (web services will have to be restarted in the process). Do not hit CTRL+C in the process!" 6 70 --output-fd 1
+
+mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE $NAME;DROP USER $NAME@localhost"
+
+sudo service uwsgi-pypy stop
+killall -9 uwsgi-pypy
+sudo service nginx stop
+killall -9 nginx
+
+sudo rm -rf \
+/etc/$NAME \
+/var/log/$NAME \
+/etc/cron.hourly/$NAME \
+/etc/nginx/sites-available/$NAME \
+/etc/nginx/sites-available/$NAME.conf \
+/etc/nginx/sites-enabled/$NAME \
+/etc/nginx/sites-enabled/$NAME.conf \
+/etc/uwsgi-pypy/apps-available/$NAME.ini \
+/home/$NAME
+
+sudo deluser $NAME
+sudo delgroup $NAME
+
+# Note: SSL certificate is NOT deleted
+
+sudo service uwsgi-pypy start
+sudo service nginx start
+
+# Removes temporary folder
+if [ -d "/dev/shm/" ]; then
+  rm -rf "/dev/shm/vilfredo"
+elif [ -d "/run/shm" ]; then
+  rm -rf "/run/shm/vilfredo"
+elif [ -d "/tmp" ]; then
+  rm -rf "/tmp/vilfredo"
+else
+  rm -rf "./vilfredo-tmp"
+fi
+
+# Display the successful install confirmation message
+dialog --backtitle 'Vilfredo instance removal procedure' --title 'Vilfredo instance removal completed' --msgbox "The Vilfredo instance named \"$NAME\" has been completely removed from this server, together with all of its data and configuration files." 7 70
