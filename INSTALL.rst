@@ -20,13 +20,15 @@ We're assuming you're running a ``Debian/GNU Linux`` based distribution (such as
 
 WARNING: Do not attempt to run installation if other web servers such as Apache are running on the same server (unless you know how to set up NGINX to run on a different IP address or port). Two web servers on the same IP address and port will conflict and prevent installation of each other.
 
-Download the ``addinstance`` script, make it executable with ``chmod +x addinstance`` and run it.
+Download the ``scripts/addinstance`` script, make it executable with ``chmod +x addinstance`` and run it.
 
 Note: This procedure, although automated, could generate situations which need being fixed by a competent system administrator. Do not run it on an existing production server if you're not prepared handling such kind of events.
 
 Please note the ``/home/vilfredo/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/vilfredo/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
 
 Now you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/vilfredo/vilfredo-vr.log`` for more information.
+
+If you want to delete a Vilfredo instance together with all of its data, download the ``scripts/delinstance`` script, make it executable with ``chmod +x addinstance`` and run it.
 
 ==========================================================
 Additional instructions for web server administrators only
