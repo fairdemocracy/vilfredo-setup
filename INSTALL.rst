@@ -24,9 +24,9 @@ Download the ``scripts/addinstance`` script, make it executable with ``chmod +x 
 
 Note: This procedure, although automated, could generate situations which need being fixed by a competent system administrator. Do not run it on an existing production server if you're not prepared handling such kind of events.
 
-Please note the ``/home/vilfredo/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/vilfredo/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
+Please note the ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
 
-Now you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/vilfredo/vilfredo-vr.log`` for more information.
+Now you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
 
 If you want to delete a Vilfredo instance together with all of its data, download the ``scripts/delinstance`` script, make it executable with ``chmod +x delinstance`` and run it.
 
