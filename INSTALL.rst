@@ -6,9 +6,9 @@ Set up a development system
 
 If everything you want is develop Vilfredo code on your local machine, you can run a simplified installation procedure which will download all code and create a virtual environment for you.
 
-Just download the ``install.sh`` script, make it executable running ``chmod +x install.sh``, and run it.
+Just download the ``scripts/install.sh`` script, make it executable running ``chmod +x install.sh``, and run it.
 
-The procedure has been written for Debian GNU/Linux, but can be easily adapted for other Linux distribution, replacing the part installing required packages.
+The procedure has been written for Debian GNU/Linux, but can be easily adapted for other Linux distributions, replacing the part installing required packages.
 
 ===================================
 Full install on a public web server
