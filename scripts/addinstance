@@ -2,9 +2,14 @@
 ##########################################################################
 # Vilfredo easy installation script
 # Developed by Massimiliano Alessandri <massimiliano.alessandri@gmail.com>
-# version 1.0 - on 10/05/2016 - 11/05/2016
+# version 1.1 - 10/05/2016, 11/05/2016, 14/05/2016
 # Released under Affero General Public License
 ##########################################################################
+function stopInstallation {
+  dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
+  exit
+}
+
 if [ ! -x "/usr/bin/dialog" ]; then
   echo "This script requires the \"dialog\" package to be installed"
   echo "Please install it with the command \"sudo apt-get install dialog\"."
@@ -37,8 +42,28 @@ mkdir -p $TMP
 # Install required packages (some of them could be already present on the system)
 #################################################################################
 echo "Installing or updating required Debian packages..."
-sudo apt-get update
-sudo apt-get install vim python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx-full ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
+if [ ! -f "/etc/apt/sources.list.d/nginx-stable-jessie.list" ]; then
+  wget http://nginx.org/keys/nginx_signing.key -O $TMP/nginx_signing.key
+  sudo -s -- <<EOF
+    apt-key add $TMP/nginx_signing.key
+    echo "deb http://nginx.org/packages/mainline/debian/ jessie nginx" > /etc/apt/sources.list.d/nginx-stable-jessie.list
+EOF
+fi
+sudo -s -- <<EOF
+  apt-get update
+  apt-get install vim python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
+EOF
+
+#############################################
+# Get NGINX virtual host configuration folder
+#############################################
+if [ -d "/etc/nginx/sites-available" ]; then
+	NGINX_CONF="/etc/nginx/sites-available"
+elif [ -d "/etc/nginx/conf.d" ]; then
+	NGINX_CONF="/etc/nginx/conf.d"
+else
+  stopInstallation
+fi
 
 #######################################
 # Install customized uwsgi-pypy package
@@ -62,13 +87,14 @@ fi
 #############################
 # Generate passwords randomly
 #############################
-VILFREDO_SECRET_KEY=`< /dev/urandom tr -dc A-Za-z0-9 | head -c${1:-32}; echo;`
-VILFREDO_ENCRYPTION_SALT=`< /dev/urandom tr -dc A-Za-z0-9 | head -c${1:-32}; echo;`
+VILFREDO_SECRET_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+VILFREDO_ENCRYPTION_SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
 ####################
 # Request parameters
 ####################
-NAME=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the name of the instance to be created." 8 70 --output-fd 1)
+# If instance name has been specified on the command line, use it as default
+NAME=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the name of the instance to be created." 8 70 $1 --output-fd 1)
 
 if [ "$NAME" == "" ]; then
   dialog --backtitle "Vilfredo new instance installation" --title 'Empty instance name' --msgbox "The name of the instance to be created has not been specified.\nCannot proceed with installation procedure." 7 70
@@ -108,38 +134,31 @@ choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Vilfr
 2 "Connect to existing database" off \
 2>&1 >/dev/tty)
 if [ "$?" != "0" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
-  exit
+  stopInstallation
 fi
-clear
+
 for choice in $choices
 do
   case $choice in
     1)
-      MYSQL_ROOT_PASSWORD=$(dialog --backtitle "Vilfredo new instance installation" --title "MySQL root password" --clear --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
+      MYSQL_ROOT_PASSWORD=$(dialog --backtitle "Vilfredo new instance installation" --title "MySQL root password" --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
       case $? in
         1)
           exit;;
         255)
           exit;;
       esac
+      RESULT=`mysql --user=root --password=$MYSQL_ROOT_PASSWORD mysql -e 'SELECT user FROM user LIMIT 1'`
+      if [ "$?" == "1" ]; then
+        dialog --backtitle "Vilfredo new instance installation" --title 'Could not connect to MySQL server' --msgbox "An error occurred while attempting to connect to MySQL database server running on localhost.\nPlease check you entered the right password." 7 70
+        exit
+      fi
       RESULT=`mysqlshow --user=root --password=$MYSQL_ROOT_PASSWORD | grep -v Wildcard | grep -o $NAME`
       if [ "$RESULT" == "$NAME" ]; then
         dialog --backtitle "Vilfredo new instance installation" --title 'Database "$NAME" already exists!' --msgbox "A MySQL database named \"$NAME\" already exists!\nDatabase has NOT been deleted. Please choose another name, or else manually perform a backup, or delete database, before proceeding.\nInstance cannot be created." 8 70
         exit
       fi
-      if [ "$?" == "1" ]; then
-        dialog --backtitle "Vilfredo new instance installation" --title 'Could not connect to MySQL server' --msgbox "An error occurred while attempting to connect to MySQL database server running on localhost.\nPlease check you entered the right password." 7 70
-        exit
-      fi
-      VILFREDO_MYSQL_PASSWORD=`< /dev/urandom tr -dc A-Za-z0-9 | head -c${1:-32}; echo;`
-      wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/database.sql -O $TMP/database.sql
-      # Enter MySQL command line prompt (please enter your MySQL root password to proceed)
-      # Replace "vilfredo" with the name of the database you want to use for Vilfredo installation
-      # Replace "vilfredo_mysql_password" with your chosen "vilfredo" user MySQL password
-      echo "Creating MySQL database $NAME..."
-      mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE IF EXISTS $NAME;CREATE DATABASE $NAME;USE $NAME;SET NAMES UTF8;SOURCE $TMP/database.sql;GRANT USAGE ON *.* TO '$NAME'@'localhost' IDENTIFIED BY '$VILFREDO_MYSQL_PASSWORD';GRANT SELECT, INSERT, UPDATE, DELETE ON $NAME.* TO $NAME@localhost;"
-      rm $TMP/database.sql
+      # Database will be created later
       ;;
     2)
       exec 3>&1;
@@ -153,31 +172,73 @@ do
       exitcode=$?;
       exec 3>&-;
       if [ "$exitcode" == "1" -o "$exitcode" == "255" ]; then
-        dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
-        exit
+        stopInstallation
       fi
       MYSQL_PARAMS=($(awk -F: '{$1=$1} 1' <<<"${result}"))
       ;;
   esac
 done
 
-DOMAIN=$(dialog --backtitle "Vilfredo new instance installation" --clear --inputbox "Please enter the domain name to be assigned to this instance.\n\nDo not enter the \"www.\" prefix! It will be automatically prepended." 11 70 --output-fd 1)
+DOMAIN=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the domain name to be assigned to this instance.\n\nDo not enter the \"www.\" prefix! It will be automatically prepended." 11 70 --output-fd 1)
 if [ "$?" != "0" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
-  exit
+  stopInstallation
 fi
 
-dialog --backtitle "Vilfredo new instance installation" --clear --yesno "Do you want to also add the www.$DOMAIN subdomain name to the configuration?\nThis must have been already configured in the DNS.\nPlease check twice it actually exists, otherwise no SSL certificate will be generated and the website will remain unsecured (accessible through the HTTP protocol only).\nSuch a situation can only be repaired by adding the missing entry into the DNS, deleting and recreating the instance, or manually fixed." 14 70
+dialog --backtitle "Vilfredo new instance installation" --yesno "Do you want to also add the www.$DOMAIN subdomain name to the configuration?\nThis must have been already configured in the DNS.\nPlease check twice it actually exists, otherwise no SSL certificate will be generated and the website will remain unsecured (accessible through the HTTP protocol only).\nSuch a situation can only be repaired by adding the missing entry into the DNS, deleting and recreating the instance, or manually fixed." 14 70
 NO_WWW_DOMAIN="$?"
 
-CORE_BRANCH=$(dialog --backtitle "Vilfredo new instance installation" --clear --inputbox "Please enter the name of the vilfredo-core code branch to be loaded into this instance:" 9 70 master --output-fd 1)
-CLIENT_BRANCH=$(dialog --backtitle "Vilfredo new instance installation" --clear --inputbox "Please enter the name of the vilfredo-client code branch to be loaded into this instance:" 9 70 master --output-fd 1)
+result=`git ls-remote --heads "https://github.com/fairdemocracy/vilfredo-core.git"|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
+branches=($(awk -F: '{$1=$1} 1' <<<"${result}"))
+options=""
+counter=1
+for i in ${branches[@]}; do
+	if [ "$i" == "master" ]; then
+		options="$options $counter $i on"
+	else
+		options="$options $counter $i off"
+	fi
+	let counter=counter+1
+done
+let rows=counter+8
+choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Choose vilfredo-core GIT branch" --radiolist "Please select which branch would you like to download from the \"vilfredo-core\" GitHub repository:" $rows 76 16 $options 2>&1 >/dev/tty)
+if [ "$?" != "0" ]; then
+	stopInstallation
+fi
+for choice in $choices
+do
+	CORE_BRANCH=${branches[$choice - 1]}
+done
 
-GOOGLE_CODE=$(dialog --backtitle "Vilfredo new instance installation" --clear --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
+result=`git ls-remote --heads "https://github.com/fairdemocracy/vilfredo-client.git"|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
+branches=($(awk -F: '{$1=$1} 1' <<<"${result}"))
+options=""
+counter=1
+for i in ${branches[@]}; do
+	if [ "$i" == "master" ]; then
+		options="$options $counter $i on"
+	else
+		options="$options $counter $i off"
+	fi
+	let counter=counter+1
+done
+let rows=counter+8
+choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Choose vilfredo-client GIT branch" --radiolist "Please select which branch would you like to download from the \"vilfredo-client\" GitHub repository:" $rows 76 16 $options 2>&1 >/dev/tty)
+if [ "$?" != "0" ]; then
+	stopInstallation
+fi
+for choice in $choices
+do
+	CLIENT_BRANCH=${branches[$choice - 1]}
+done
+
+GOOGLE_CODE=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
+if [ "$?" != "0" ]; then
+  quitInstallation
+fi
 
 exec 3>&1;
 result=$(dialog --backtitle "Vilfredo new instance installation" --title "Mail server settings" \
---form "Vilfredo needs a mail server in order to send notifications and other kind of messages to its users.\nNowadays, it has become increasingly difficult to send mail messages such a way which will not make them consider spam by major providers such as GMail or MSN.\nYou can set up a mail server following a guide, but this might be rather difficult (requires adding some keys to the DNS) and should be left to experienced system administrators only.\nAlternatively, you might as well resort to an external mail server, using SMTP authentication.\nIn this case, edit default values with your mail server credentials." 20 70 6 \
+--form "Vilfredo needs a mail server in order to send notifications and other kind of messages to its users.\nNowadays, it has become increasingly difficult to send mail messages such a way which will not make them consider spam by major providers such as GMail or MSN.\nYou may set up your own mail server, but this could be rather difficult (also requires adding some keys to the DNS) and thus should be left to experienced system administrators only.\nAlternatively, you might as well resort to an external mail server, using SMTP authentication.\nIn this case, edit default values with your mail server credentials." 24 70 6 \
 "SMTP Server:" 1 1 "localhost" 1 30 34 80 \
 "Port:" 2 1 "25" 2 30 34 80 \
 "Username (or email address):" 3 1 "" 3 30 34 80 \
@@ -186,11 +247,24 @@ exitcode=$?;
 exec 3>&-;
 
 if [ "$exitcode" == "1" -o "$exitcode" == "255" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
-  exit
+  stopInstallation
 fi
 
 SMTP_PARAMS=($(awk -F: '{$1=$1} 1' <<<"${result}"))
+
+###########################
+# Create the MySQL database
+###########################
+if [ ! -z $MYSQL_ROOT_PASSWORD ]; then
+  VILFREDO_MYSQL_PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+  wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/database.sql -O $TMP/database.sql
+  # Enter MySQL command line prompt (please enter your MySQL root password to proceed)
+  # Replace "vilfredo" with the name of the database you want to use for Vilfredo installation
+  # Replace "vilfredo_mysql_password" with your chosen "vilfredo" user MySQL password
+  echo "Creating MySQL database $NAME..."
+  mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE IF EXISTS $NAME;CREATE DATABASE $NAME;USE $NAME;SET NAMES UTF8;SOURCE $TMP/database.sql;GRANT USAGE ON *.* TO '$NAME'@'localhost' IDENTIFIED BY '$VILFREDO_MYSQL_PASSWORD';GRANT SELECT, INSERT, UPDATE, DELETE ON $NAME.* TO $NAME@localhost;"
+  rm $TMP/database.sql
+fi
 
 #####################
 # Install application
@@ -203,43 +277,50 @@ if [ "$?" == "1" ]; then
   exit
 fi
 
-echo "Creating folder for instance $NAME..."
-cd /home/$NAME
-echo "Downloading vilfredo-core $CORE_BRANCH repository..."
-sudo -u $NAME git clone -b $CORE_BRANCH https://github.com/fairdemocracy/vilfredo-core.git
-echo "Downloading vilfredo-client $CLIENT_BRANCH repository..."
-git clone -b $CLIENT_BRANCH https://github.com/fairdemocracy/vilfredo-client.git; \
-sudo -u $NAME \
-virtualenv vilfredo-ve --python=/usr/bin/pypy; \
-. vilfredo-ve/bin/activate; \
-pip install -U setuptools; \
-pip install itsdangerous==0.23; \
-pip install argparse==1.2.1; \
-pip install alembic==0.7.4; \
-pip install Flask-Script==0.6.7; \
-pip install Flask-Migrate==1.3.0; \
-pip install Pillow==2.8.1; \
-pip install requests==2.7.0; \
-pip install ipython==4.0.0; \
-pip install Flask==0.10; \
-pip install Flask-Mail==0.8.2; \
-pip install Flask-Babel==0.8; \
-pip install Flask-Login==0.2.6; \
-pip install SQLAlchemy==0.8.2; \
-pip install Flask-SQLAlchemy==1.0; \
-pip install Flask-CDN==1.2.1; \
-pip install flask-util-js==0.2.19; \
-pip install MySQL-python==1.2.5; \
-pip install pyparsing==1.5.7; \
-pip install pydot==1.0.2
-# Create symbolic links
-sudo -u $NAME ln -sf /home/$NAME/vilfredo-client/static /home/$NAME/vilfredo-core/VilfredoReloadedCore/static
-sudo -u $NAME ln -sf /home/$NAME/vilfredo-client/templates /home/$NAME/vilfredo-core/VilfredoReloadedCore/templates
+sudo -u $NAME -s -- <<EOF
+  echo "Downloading vilfredo-core $CORE_BRANCH repository..."
+  cd /home/$NAME
+  git clone -b $CORE_BRANCH https://github.com/fairdemocracy/vilfredo-core.git
+  echo "Downloading vilfredo-client $CLIENT_BRANCH repository..."
+  git clone -b $CLIENT_BRANCH https://github.com/fairdemocracy/vilfredo-client.git
+  echo "Creating virtual environment..."
+  virtualenv vilfredo-ve --python=/usr/bin/pypy
+  . vilfredo-ve/bin/activate
+  pip install -U setuptools
+  pip install itsdangerous==0.23
+  pip install argparse==1.2.1
+  pip install alembic==0.7.4
+  pip install Flask-Script==0.6.7
+  pip install Flask-Migrate==1.3.0
+  pip install Pillow==2.8.1
+  pip install requests==2.7.0
+  pip install ipython==4.0.0
+  pip install Flask==0.10
+  pip install Flask-Mail==0.8.2
+  pip install Flask-Babel==0.8
+  pip install Flask-Login==0.2.6
+  pip install SQLAlchemy==0.8.2
+  pip install Flask-SQLAlchemy==1.0
+  pip install Flask-CDN==1.2.1
+  pip install flask-util-js==0.2.19
+  pip install MySQL-python==1.2.5
+  pip install pyparsing==1.5.7
+  pip install pydot==1.0.2
+  deactivate
+  echo "Creating symbolic links..."
+  ln -sf /home/$NAME/vilfredo-client/static /home/$NAME/vilfredo-core/VilfredoReloadedCore/static
+  ln -sf /home/$NAME/vilfredo-client/templates /home/$NAME/vilfredo-core/VilfredoReloadedCore/templates
+EOF
 sudo chgrp www-data /home/$NAME/vilfredo-client/static
 
+#######################
+# Configure application
+#######################
 echo "Configuring instance $NAME..."
-sudo mkdir /etc/$NAME
-sudo chown $NAME:www-data /etc/$NAME
+sudo -s -- <<EOF
+  mkdir /etc/$NAME
+  chown $NAME:www-data /etc/$NAME
+EOF
 # Configure "settings.cfg" (Vilfredo core settings)
 sudo -u $NAME wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/settings.cfg -O /etc/$NAME/settings.cfg
 if [ "$NO_WWW_DOMAIN" == "1" ]; then
@@ -247,44 +328,55 @@ if [ "$NO_WWW_DOMAIN" == "1" ]; then
 else
   sudo -u $NAME sed -i s/www.vilfredo.org/www.$DOMAIN/g /etc/$NAME/settings.cfg
 fi
-sudo -u $NAME sed -i s/https/https/g /etc/$NAME/settings.cfg
-sudo -u $NAME sed -i s/home\\/vilfredo/home\\/$NAME/g /etc/$NAME/settings.cfg
-sudo -u $NAME sed -i "s/MAIL_SERVER = 'localhost/MAIL_SERVER = '${SMTP_PARAMS[0]}/g" /etc/$NAME/settings.cfg
-sudo -u $NAME sed -i "s/MAIL_PORT = 25/MAIL_PORT = ${SMTP_PARAMS[1]}/g" /etc/$NAME/settings.cfg
+sudo -u $NAME -s -- <<EOF
+  sed -i "s/https/https/g" /etc/$NAME/settings.cfg
+  sed -i "s!home/vilfredo!home/$NAME/g" /etc/$NAME/settings.cfg
+  sed -i "s/MAIL_SERVER = 'localhost/MAIL_SERVER = '${SMTP_PARAMS[0]}/g" /etc/$NAME/settings.cfg
+  sed -i "s/MAIL_PORT = 25/MAIL_PORT = ${SMTP_PARAMS[1]}/g" /etc/$NAME/settings.cfg
+EOF
 if [ "$SMTP_PARAMS[2]" != "" ]; then
   sudo -u $NAME sed -i "s/MAIL_USERNAME = None/MAIL_USERNAME = '${SMTP_PARAMS[2]}'/g" /etc/$NAME/settings.cfg
 fi
 if [ "$SMTP_PARAMS[3]" != "" ]; then
   sudo -u $NAME sed -i "s/MAIL_PASSWORD = None/MAIL_PASSWORD = '${SMTP_PARAMS[3]}'/g" /etc/$NAME/settings.cfg
 fi
-if [ -z "$MYSQL_PARAMS" ]; then
-  sudo -u $NAME sed -i s/vilfredo_mysql_password/$VILFREDO_MYSQL_PASSWORD/g /etc/$NAME/settings.cfg
+if [ ! -z $MYSQL_PARAMS ]; then
+  sudo -u $NAME sed -i "s/vilfredo_mysql_password/$VILFREDO_MYSQL_PASSWORD/g" /etc/$NAME/settings.cfg
 else
-  sudo -u $NAME sed -i "s/mysql+mysqldb:\\/\\/vilfredo:vilfredo_mysql_password@localhost\\/vilfredo/mysql+mysqldb:\\/\\/${MYSQL_PARAMS[2]}:${MYSQL_PARAMS[3]}@${MYSQL_PARAMS[0]}\\/${MYSQL_PARAMS[4]}/g" /etc/$NAME/settings.cfg
+  sudo -u $NAME sed -i "s!mysql+mysqldb://vilfredo:vilfredo_mysql_password@localhost/vilfredo!mysql+mysqldb://${MYSQL_PARAMS[2]}:${MYSQL_PARAMS[3]}@${MYSQL_PARAMS[0]}/${MYSQL_PARAMS[4]}!g" /etc/$NAME/settings.cfg
 fi
-sudo -u $NAME sed -i s/secret_key/$VILFREDO_SECRET_KEY/g /etc/$NAME/settings.cfg
-sudo -u $NAME sed -i s/vilfredo_salt/$VILFREDO_ENCRYPTION_SALT/g /etc/$NAME/settings.cfg
-sudo -u $NAME ln -sf /etc/$NAME/settings.cfg /home/$NAME/vilfredo-core/VilfredoReloadedCore
+sudo -u $NAME -s -- <<EOF
+  sed -i "s/secret_key/$VILFREDO_SECRET_KEY/g" /etc/$NAME/settings.cfg
+  sed -i "s/vilfredo_salt/$VILFREDO_ENCRYPTION_SALT/g" /etc/$NAME/settings.cfg
+  ln -sf /etc/$NAME/settings.cfg /home/$NAME/vilfredo-core/VilfredoReloadedCore
+EOF
 # Configure "settings.js"
-sudo mv /home/$NAME/vilfredo-client/static/js/settings.js /etc/$NAME
+sudo -u $NAME mv /home/$NAME/vilfredo-client/static/js/settings.js /etc/$NAME
 if [ "$NO_WWW_DOMAIN" == "1" ]; then
   sudo -u $NAME sed -i s/127.0.0.1:8080/$DOMAIN/g /etc/$NAME/settings.js
 else
   sudo -u $NAME sed -i s/127.0.0.1:8080/www.$DOMAIN/g /etc/$NAME/settings.js
 fi
-sudo -u $NAME sed -i s/https/http/g /etc/$NAME/settings.js
-sudo -u $NAME ln -sf /etc/$NAME/settings.js /home/$NAME/vilfredo-client/static/js
+sudo -u $NAME -s -- <<EOF
+  sed -i s/https/http/g /etc/$NAME/settings.js
+  ln -sf /etc/$NAME/settings.js /home/$NAME/vilfredo-client/static/js
+EOF
+sudo chown -h $NAME /home/$NAME/vilfredo-client/static/js/settings.js
 # Configure "logging_debug.conf"
-sudo -u $NAME wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/logging_debug.conf -O /etc/$NAME/logging_debug.conf
-sudo -u $NAME ln -sf /etc/$NAME/logging_debug.conf /home/$NAME/vilfredo-core/VilfredoReloadedCore
-# Set Google Analytics code
-sed -i s/UA-XXXXXXXX-X/$GOOGLE_CODE/g /home/$NAME/vilfredo-client/static/templates/analytics.template.html
-# Create log folder
-sudo mkdir /var/log/$NAME
-sudo chown $NAME /var/log/$NAME
-# This file is not needed in this setup - delete it if it has been downloaded from repository
-sudo -u $NAME rm /home/$NAME/vilfredo-core/VilfredoReloadedCore/main.py
-sudo chgrp -R www-data /home/$NAME
+sudo -u $NAME -s -- <<EOF
+  wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/logging_debug.conf -O /etc/$NAME/logging_debug.conf
+  sed -i s!/var/log/vilfredo/vilfredo-vr.log!/var/log/$NAME/vr.log!g /etc/$NAME/logging_debug.conf
+  ln -sf /etc/$NAME/logging_debug.conf /home/$NAME/vilfredo-core/VilfredoReloadedCore
+  sed -i s/UA-XXXXXXXX-X/$GOOGLE_CODE/g /home/$NAME/vilfredo-client/static/templates/analytics.template.html
+EOF
+sudo -s -- <<EOF
+  # Create log folder
+  mkdir /var/log/$NAME
+  chown $NAME /var/log/$NAME
+  # This file is not needed in this setup - delete it if it has been downloaded from repository
+  rm -f /home/$NAME/vilfredo-core/VilfredoReloadedCore/main.py
+  chgrp -R www-data /home/$NAME
+EOF
 
 ############################
 # Configure NGINX web server
@@ -293,11 +385,14 @@ echo "Configuring NGINX web server for new instance $NAME..."
 # Note: This folder exists only to allow SSL certificate validation
 sudo -u $NAME mkdir /home/$NAME/www
 if [ ! -f "/etc/nginx/dhparam.pem" ]; then
-  sudo openssl dhparam -out /etc/nginx/dhparam.pem 4096
-  sudo chmod 600 /etc/nginx/dhparam.pem
+  sudo -s -- <<EOF
+    openssl dhparam -out /etc/nginx/dhparam.pem 4096
+    sudo chmod 600 /etc/nginx/dhparam.pem
+EOF
 fi
 
 if [ ! -f "/etc/nginx/snippets/ssl.conf" ]; then
+	mkdir -p /etc/nginx/snippets
   sudo cat > /etc/nginx/snippets/ssl.conf <<EOF
 ssl on;
 ssl_dhparam               dhparam.pem;
@@ -312,16 +407,19 @@ resolver_timeout          5s;
 add_header                Strict-Transport-Security "max-age=31536000";
 EOF
 fi
-
+# Compile domain list
 if [ "$NO_WWW_DOMAIN" == "1" ]; then
   DOMAINS=$DOMAIN
 else
   DOMAINS="www.$DOMAIN $DOMAIN"
 fi
-sudo cat > /etc/nginx/sites-available/$NAME <<EOF
+# Install NGINX virtual host configuration file
+sudo cat > $NGINX_CONF/$NAME.conf <<EOF
 server {
   listen 80;
   listen [::]:80;
+  listen 443 ssl http2;
+  listen [::]:443 ssl http2;
 
   server_name $DOMAINS;
 
@@ -359,7 +457,10 @@ server {
 }
 EOF
 
-sudo ln -sf /etc/nginx/sites-available/$NAME /etc/nginx/sites-enabled
+# Note: This symbolic link is only needed if we wrote configuration in /etc/nginx/sites-available
+if [ -d "/etc/nginx/sites-enabled" ]; then
+  sudo ln -sf /etc/nginx/sites-available/$NAME.conf /etc/nginx/sites-enabled
+fi
 
 sudo cat > /etc/uwsgi-pypy/apps-available/$NAME.ini <<EOF
 [uwsgi]
@@ -391,11 +492,12 @@ pypy-pp=/home/$NAME/vilfredo-core
 pypy-home=/home/$NAME/vilfredo-ve
 pypy-wsgi=VilfredoReloadedCore:app
 EOF
-sudo ln -sf /etc/uwsgi-pypy/apps-available/$NAME.ini /etc/uwsgi-pypy/apps-enabled
-
-echo "Restarting web services..."
-sudo service uwsgi-pypy reload
-sudo service nginx restart
+sudo -s -- <<EOF
+  ln -sf /etc/uwsgi-pypy/apps-available/$NAME.ini /etc/uwsgi-pypy/apps-enabled
+  echo "Restarting web services..."
+  service uwsgi-pypy reload
+  service nginx restart
+EOF
 
 #########################
 # Request SSL certificate
@@ -410,19 +512,29 @@ else
   RET="$?"
 fi
 if [ "$RET" == "1" ]; then
-  sudo sed -i s/https:/http:/g /etc/$NAME/settings.js
-  sudo sed -i s/https:/http:/g /etc/$NAME/settings.cfg
+	# Cannot configure HTTPS: disable it on configuration files
+  sudo -u $NAME -s -- <<EOF
+    sed -i s/https:/http:/g /etc/$NAME/settings.js
+    sed -i s/https:/http:/g /etc/$NAME/settings.cfg
+EOF
+  sudo -s -- <<EOF
+    sed -i s/  listen 443 ssl http2//g $NGINX_CONF/$NAME.conf
+    sed -i s/  listen [::]:443 ssl http2//g $NGINX_CONF/$NAME.conf
+EOF
   echo "Restarting web services..."
   sudo service uwsgi-pypy reload
   dialog --backtitle "Vilfredo new instance installation" --title "Cannot install SSL certificate" --msgbox "A problem occurred while attempting to obtain a free SSL certificate from Let's Encrypt.\nThe web site will run unsecured (with the HTTP protocol).\nPlease fix this problem manually, or otherwise delete and recreate the instance later." 8 70
 else
-  sudo sed -i s/#include/include/g /etc/nginx/sites-available/$NAME
-  sudo sed -i s/#ssl_/ssl_/g /etc/nginx/sites-available/$NAME
-  sudo sed -i s/http:/https:/g /etc/$NAME/settings.js
-  sudo sed -i s/http:/https:/g /etc/$NAME/settings.cfg
+  sudo -u $NAME -s -- <<EOF
+    sed -i s/http:/https:/g /etc/$NAME/settings.js
+    sed -i s/http:/https:/g /etc/$NAME/settings.cfg
+EOF
+  sudo -s -- <<EOF
+    sed -i s/#include/include/g $NGINX_CONF/$NAME.conf
+    sed -i s/#ssl_/ssl_/g $NGINX_CONF/$NAME.conf
+EOF
   echo "Restarting web services..."
-  sudo service uwsgi-pypy reload
-  sudo service nginx restart
+  sudo service uwsgi-pypy reload;service nginx restart
 fi
 
 ###########################################################
@@ -452,15 +564,18 @@ fi
 # but that's the easiest solution at the moment
 echo "Adding script to automatically update code from repository $BRANCH..."
 sudo -u $NAME mkdir /home/$NAME/bin
-sudo cat > /home/$NAME/bin/checkout <<EOF
+sudo -u $NAME cat > /home/$NAME/bin/checkout <<EOF
+#!/bin/bash
 sudo -u $NAME git -C /home/$NAME/vilfredo-core checkout
 sudo -u $NAME git -C /home/$NAME/vilfredo-client checkout
 EOF
-sudo chmod u+x /home/$NAME/bin/checkout
+sudo -u $NAME chmod u+x /home/$NAME/bin/checkout
 dialog --backtitle "Vilfredo new instance installation" --title 'GIT checkout script created' --yesno "An easy to execute script, named /home/$NAME/bin/checkout, has been created for you.\nThis can be manually invoked to update instance code downloading latest changes from the GIT repository.\nWould you like to configure a cron job, executed each hour, in order to automate the process and always keep the code in sync with latest changes?" 12 70
 if [ "$?" == "0" ]; then
-  sudo ln -s /home/$NAME/bin/checkout /etc/cron.hourly/$NAME
-  sudo chmod 700 /etc/cron.hourly/$NAME
+  sudo -s -- <<EOF
+    ln -s /home/$NAME/bin/checkout /etc/cron.hourly/$NAME
+    chmod 700 /etc/cron.hourly/$NAME
+EOF
 fi
 
 # Removes temporary folder
@@ -468,3 +583,5 @@ rm -rf $TMP
 
 # Display the successful install confirmation message
 dialog --backtitle "Vilfredo new instance installation" --title 'Vilfredo instance installation completed' --msgbox "A new Vilfredo instance named \"$NAME\" has been installed successfully!\nIf you have already configured DNS, you will find it at http://$DOMAIN/" 9 70
+
+clear

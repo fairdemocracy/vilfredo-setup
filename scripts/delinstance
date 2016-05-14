@@ -4,6 +4,7 @@
 # Developed by massimiliano.alessandri@gmail.com
 # Released under Affero General Public License
 ################################################
+# Perform preliminar checks
 if [ ! -x "/usr/bin/dialog" ]; then
   echo "This script requires the \"dialog\" package to be installed"
   echo "Please install it with the command \"sudo apt-get install dialog\"."
@@ -15,6 +16,21 @@ if [ ! -x "/usr/bin/sudo" ]; then
   exit
 fi
 
+#############################################
+# Get NGINX virtual host configuration folder
+#############################################
+if [ -d "/etc/nginx/sites-available" ]; then
+	NGINX_CONF="/etc/nginx/sites-available"
+elif [ -d "/etc/nginx/conf.d" ]; then
+	NGINX_CONF="/etc/nginx/conf.d"
+else
+  dialog --backtitle "Vilfredo instance removal procedure" --title "Web server configuration error" --msgbox "A problem occurred while determining the web server configuration folder.\nPlease contact your system administrator to solve the issue." 8 70
+  exit
+fi
+
+################
+# Welcome screen
+################
 dialog --backtitle 'Vilfredo instance removal procedure' --yesno 'This procedure removes all traces of a Vilfredo instance on the server.\nIt can be useful to remove tests or wrong installations.\nNote: All data will be deleted!\nThis will not uninstall any Debian package.\nWould you like to continue?' 11 70
 if [ "$?" != "0" ]; then
   exit
@@ -23,7 +39,8 @@ fi
 ####################
 # Request parameters
 ####################
-NAME=$(dialog --backtitle 'Vilfredo instance removal procedure' --inputbox "Please enter the name of the instance to be deleted." 7 70 --output-fd 1)
+# If instance name has been specified on the command line, use it as default
+NAME=$(dialog --backtitle 'Vilfredo instance removal procedure' --inputbox "Please enter the name of the instance to be deleted." 7 70 $1 --output-fd 1)
 
 if [ "$NAME" == "" ]; then
   dialog --backtitle 'Vilfredo instance removal procedure' --title 'Empty instance name' --msgbox "The name of the instance to be deleted has not been specified.\nAborting uninstallation procedure." 7 70
@@ -53,16 +70,26 @@ killall -9 uwsgi-pypy
 sudo service nginx stop
 killall -9 nginx
 
-sudo rm -rf \
+if [ "$NGINX_CONF" == "/etc/nginx/conf.d" ]; then
+  sudo rm -rf \
 /etc/$NAME \
 /var/log/$NAME \
 /etc/cron.hourly/$NAME \
-/etc/nginx/sites-available/$NAME \
-/etc/nginx/sites-available/$NAME.conf \
-/etc/nginx/sites-enabled/$NAME \
-/etc/nginx/sites-enabled/$NAME.conf \
+/etc/nginx/conf.d/$NAME.conf \
+/etc/uwsgi-pypy/apps-enabled/$NAME.ini \
 /etc/uwsgi-pypy/apps-available/$NAME.ini \
 /home/$NAME
+else
+  sudo rm -rf \
+/etc/$NAME \
+/var/log/$NAME \
+/etc/cron.hourly/$NAME \
+/etc/nginx/sites-enabled/$NAME.conf \
+/etc/nginx/sites-available/$NAME.conf \
+/etc/uwsgi-pypy/apps-enabled/$NAME.ini \
+/etc/uwsgi-pypy/apps-available/$NAME.ini \
+/home/$NAME
+fi
 
 sudo deluser $NAME
 sudo delgroup $NAME
