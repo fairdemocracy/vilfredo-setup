@@ -159,6 +159,7 @@ do
         exit
       fi
       # Database will be created later
+      MYSQL_PARAMS=""
       ;;
     2)
       exec 3>&1;
@@ -330,7 +331,8 @@ else
 fi
 sudo -u $NAME -s -- <<EOF
   sed -i "s/https/https/g" /etc/$NAME/settings.cfg
-  sed -i "s!home/vilfredo!home/$NAME/g" /etc/$NAME/settings.cfg
+  sed -i "s!home/vilfredo!home/$NAME!g" /etc/$NAME/settings.cfg
+  sed -i "s!var/log/vilfredo/vilfredo-vr.log!var/log/$NAME/vr.log!g" /etc/$NAME/settings.cfg
   sed -i "s/MAIL_SERVER = 'localhost/MAIL_SERVER = '${SMTP_PARAMS[0]}/g" /etc/$NAME/settings.cfg
   sed -i "s/MAIL_PORT = 25/MAIL_PORT = ${SMTP_PARAMS[1]}/g" /etc/$NAME/settings.cfg
 EOF
@@ -340,7 +342,7 @@ fi
 if [ "$SMTP_PARAMS[3]" != "" ]; then
   sudo -u $NAME sed -i "s/MAIL_PASSWORD = None/MAIL_PASSWORD = '${SMTP_PARAMS[3]}'/g" /etc/$NAME/settings.cfg
 fi
-if [ ! -z $MYSQL_PARAMS ]; then
+if [ -z $MYSQL_PARAMS ]; then
   sudo -u $NAME sed -i "s/vilfredo_mysql_password/$VILFREDO_MYSQL_PASSWORD/g" /etc/$NAME/settings.cfg
 else
   sudo -u $NAME sed -i "s!mysql+mysqldb://vilfredo:vilfredo_mysql_password@localhost/vilfredo!mysql+mysqldb://${MYSQL_PARAMS[2]}:${MYSQL_PARAMS[3]}@${MYSQL_PARAMS[0]}/${MYSQL_PARAMS[4]}!g" /etc/$NAME/settings.cfg
@@ -370,11 +372,13 @@ sudo -u $NAME -s -- <<EOF
   sed -i s/UA-XXXXXXXX-X/$GOOGLE_CODE/g /home/$NAME/vilfredo-client/static/templates/analytics.template.html
 EOF
 sudo -s -- <<EOF
-  # Create log folder
+  # Create log folders
   mkdir /var/log/$NAME
   chown $NAME /var/log/$NAME
+  mkdir /var/log/nginx/$NAME
   # This file is not needed in this setup - delete it if it has been downloaded from repository
   rm -f /home/$NAME/vilfredo-core/VilfredoReloadedCore/main.py
+  # Allow NGINX serving static files in instance folder
   chgrp -R www-data /home/$NAME
 EOF
 
@@ -423,21 +427,16 @@ server {
 
   server_name $DOMAINS;
 
+  root /home/$NAME/vilfredo-client/static;
+
   #include              snippets/ssl.conf;
   #ssl_certificate      /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
   #ssl_certificate_key  /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
-  location /static {
-    root /home/$NAME/vilfredo-client/static;
-    try_files \$uri =404;
-  }
-  location /templates {
-    root /home/$NAME/vilfredo-client/static/templates;
-    try_files \$uri =404;
-  }
+  access_log /var/log/nginx/$NAME/access.log;
+  error_log /var/log/nginx/$NAME/error.log;
+
   location / {
-    # Note: This only exists in order to allow SSL certificate validation
-    root /home/$NAME/www;
     try_files \$uri @vilfredo;
   }
   location @vilfredo {
@@ -505,10 +504,10 @@ EOF
 echo "Requesting a free SSL certificate for https://$DOMAIN"
 # Note: Only now that we've configured NGINX, we can request the certificate
 if [ "$NO_WWW_DOMAIN" == "1" ]; then
-  sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/www -d $DOMAIN
+  sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/vilfredo-client/static -d $DOMAIN
   RET="$?"
 else
-  sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/www -d $DOMAIN -d www.$DOMAIN
+  sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/vilfredo-client/static -d $DOMAIN -d www.$DOMAIN
   RET="$?"
 fi
 if [ "$RET" == "1" ]; then
@@ -569,7 +568,7 @@ sudo -u $NAME cat > /home/$NAME/bin/checkout <<EOF
 sudo -u $NAME git -C /home/$NAME/vilfredo-core checkout
 sudo -u $NAME git -C /home/$NAME/vilfredo-client checkout
 EOF
-sudo -u $NAME chmod u+x /home/$NAME/bin/checkout
+sudo chmod u+x /home/$NAME/bin/checkout
 dialog --backtitle "Vilfredo new instance installation" --title 'GIT checkout script created' --yesno "An easy to execute script, named /home/$NAME/bin/checkout, has been created for you.\nThis can be manually invoked to update instance code downloading latest changes from the GIT repository.\nWould you like to configure a cron job, executed each hour, in order to automate the process and always keep the code in sync with latest changes?" 12 70
 if [ "$?" == "0" ]; then
   sudo -s -- <<EOF
