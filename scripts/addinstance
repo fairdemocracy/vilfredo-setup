@@ -2,38 +2,38 @@
 ##########################################################################
 # Vilfredo easy installation script
 # Developed by Massimiliano Alessandri <massimiliano.alessandri@gmail.com>
-# version 1.1 - 10/05/2016, 11/05/2016, 14/05/2016
+# version 1.11 - 10/05/2016, 11/05/2016, 14/05/2016, 15/05/2016
 # Released under Affero General Public License
 ##########################################################################
 function stopInstallation {
-  dialog --backtitle "Vilfredo new instance installation" --title "Interrupted by user" --msgbox "The installation procedure has been interrupted.\nNothing has been changed on server." 7 70
+  dialog --backtitle 'Vilfredo new instance installation' --title 'Interrupted by user' --msgbox 'The installation procedure has been interrupted.\nNothing has been changed on server.' 7 70
   exit
 }
 
-if [ ! -x "/usr/bin/dialog" ]; then
-  echo "This script requires the \"dialog\" package to be installed"
-  echo "Please install it with the command \"sudo apt-get install dialog\"."
+if [ ! -x '/usr/bin/dialog' ]; then
+  echo 'This script requires the "dialog" package to be installed'
+  echo 'Please install it with the command "sudo apt-get install dialog".'
   exit
 fi
 
-if [ ! -x "/usr/bin/sudo" ]; then
-  dialog --title "Sudo command not found" --msgbox 'The "sudo" program must be installed in order to proceed.\nPlease install it, as root user, with the following command:\n\napt-get install sudo' 9 70
+if [ ! -x '/usr/bin/sudo' ]; then
+  dialog --title 'Sudo command not found' --msgbox 'The "sudo" program must be installed in order to proceed.\nPlease install it, as root user, with the following command:\n\napt-get install sudo' 9 70
   exit
 fi
 
-dialog --backtitle "Vilfredo instance installation procedure" --yesno 'Welcome to Vilfredo installation!\nThis procedure has been designed and tested on Debian GNU/Linux.\nIt might work on Ubuntu GNU/Linux as well.\n\nIn the next screens, you will be prompted to enter some details in order to setup a new instance of the system.\nPlease note you will need sudo rights in order to proceed.\nIf you wish to abort installation, select "No" now.' 14 70
+dialog --backtitle 'Vilfredo instance installation procedure' --yesno 'Welcome to Vilfredo installation!\nThis procedure has been designed and tested on Debian GNU/Linux.\nIt might work on Ubuntu GNU/Linux as well.\n\nIn the next screens, you will be prompted to enter some details in order to setup a new instance of the system.\nPlease note you will need sudo rights in order to proceed.\nIf you wish to abort installation, select "No" now.' 14 70
 if [ "$?" != "0" ]; then
   exit
 fi
 
-if [ -d "/dev/shm/" ]; then
-  TMP="/dev/shm/vilfredo"
-elif [ -d "/run/shm" ]; then
-  TMP="/run/shm/vilfredo"
-elif [ -d "/tmp" ]; then
-  TMP="/tmp/vilfredo"
+if [ -d '/dev/shm/' ]; then
+  TMP='/dev/shm/vilfredo'
+elif [ -d '/run/shm' ]; then
+  TMP='/run/shm/vilfredo'
+elif [ -d '/tmp' ]; then
+  TMP='/tmp/vilfredo'
 else
-  TMP="./vilfredo-tmp"
+  TMP='./vilfredo-tmp'
 fi
 
 mkdir -p $TMP
@@ -41,8 +41,8 @@ mkdir -p $TMP
 #################################################################################
 # Install required packages (some of them could be already present on the system)
 #################################################################################
-echo "Installing or updating required Debian packages..."
-if [ ! -f "/etc/apt/sources.list.d/nginx-stable-jessie.list" ]; then
+echo 'Installing or updating required Debian packages...'
+if [ ! -f '/etc/apt/sources.list.d/nginx-stable-jessie.list' ]; then
   wget http://nginx.org/keys/nginx_signing.key -O $TMP/nginx_signing.key
   sudo -s -- <<EOF
     apt-key add $TMP/nginx_signing.key
@@ -57,10 +57,10 @@ EOF
 #############################################
 # Get NGINX virtual host configuration folder
 #############################################
-if [ -d "/etc/nginx/sites-available" ]; then
-	NGINX_CONF="/etc/nginx/sites-available"
-elif [ -d "/etc/nginx/conf.d" ]; then
-	NGINX_CONF="/etc/nginx/conf.d"
+if [ -d '/etc/nginx/sites-available' ]; then
+  NGINX_CONF='/etc/nginx/sites-available'
+elif [ -d '/etc/nginx/conf.d' ]; then
+  NGINX_CONF='/etc/nginx/conf.d'
 else
   stopInstallation
 fi
@@ -68,8 +68,8 @@ fi
 #######################################
 # Install customized uwsgi-pypy package
 #######################################
-if [ ! -x "/usr/bin/uwsgi-pypy" ]; then
-  echo "Installing customized uwsgi-pypy package from GitHub repository..."
+if [ ! -x '/usr/bin/uwsgi-pypy' ]; then
+  echo 'Installing customized uwsgi-pypy package from GitHub repository...'
   wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/uwsgi-pypy.deb -O $TMP/uwsgi-pypy.deb
   sudo dpkg -i $TMP/uwsgi-pypy.deb
   rm $TMP/uwsgi-pypy.deb
@@ -78,7 +78,7 @@ fi
 #######################
 # Install Let's Encrypt
 #######################
-if [ ! -d "/usr/local/letsencrypt" ]; then
+if [ ! -d '/usr/local/letsencrypt' ]; then
   CURRENT_DIR=`pwd`
   sudo git -C /usr/local clone https://github.com/letsencrypt/letsencrypt
   cd $CURRENT_DIR
@@ -94,160 +94,180 @@ VILFREDO_ENCRYPTION_SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | 
 # Request parameters
 ####################
 # If instance name has been specified on the command line, use it as default
-NAME=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the name of the instance to be created." 8 70 $1 --output-fd 1)
+DEFAULT=$1
 
-if [ "$NAME" == "" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title 'Empty instance name' --msgbox "The name of the instance to be created has not been specified.\nCannot proceed with installation procedure." 7 70
-  exit
-fi
+# This loop ends when there's not a database with the same name as the instance,
+# or parameters have been entered to connect to an existing database.
+while true; do
+  NAME=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox 'Please enter the name of the instance to be created.' 8 70 $DEFAULT --output-fd 1)
+  unset DEFAULT
 
-if [ -d "/etc/$NAME" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title 'Configuration folder already exists!' --msgbox "A configuration folder named /etc/$NAME already exists!\nInstance cannot be created.\nPlease choose another name or manually remove the /etc/$NAME folder." 9 70
-  exit
-fi
+  if [ -z $NAME ]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title 'Empty instance name' --msgbox 'The name of the instance to be created has not been specified.\nCannot proceed with installation procedure.' 7 70
+    exit
+  fi
 
-if [ -d "/etc/cron.hourly/$NAME" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title 'Cron job already exists!' --msgbox "A cron job file named /etc/cron.hourly/$NAME already exists!\nInstance cannot be created.\nPlease choose another name or manually remove the /etc/cron.hourly/$NAME file." 9 70
-  exit
-fi
+  if [ -d "/etc/$NAME" ]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title 'Configuration folder already exists!' --msgbox "A configuration folder named /etc/$NAME already exists!\nInstance cannot be created.\nPlease choose another name, or alternatively manually remove the /etc/$NAME folder.\nIf an instance with this name already exists, use the \"delinstance\" script to get rid of all instance data." 10 70
+    exit
+  fi
 
-if [ -d "/home/$NAME" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title 'Home folder already exists!' --msgbox "A folder named /home/$NAME already exists!\nInstance cannot be created.\nPlease choose another name or manually remove the /home/$NAME folder." 9 70
-  exit
-fi
+  if [ -d "/etc/cron.hourly/$NAME" ]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title 'Cron job already exists!' --msgbox "A cron job file named /etc/cron.hourly/$NAME already exists!\nInstance cannot be created.\nPlease choose another name or manually remove the /etc/cron.hourly/$NAME file.\nIf an instance with this name already exists, use the \"delinstance\" script to get rid of all instance data." 10 70
+    exit
+  fi
 
-if id "$NAME" > /dev/null 2>&1; then
-  dialog --backtitle "Vilfredo new instance installation" --title "User \"$NAME\" already exists" --msgbox "A system user named \"$NAME\" already exists.\nInstance cannot be created.\nPlease choose another name or manually remove the \"$NAME\" user." 9 70
-  exit
-fi
+  if [ -d "/home/$NAME" ]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title 'Home folder already exists!' --msgbox "A folder named /home/$NAME already exists!\nInstance cannot be created.\nPlease choose another name or manually remove the /home/$NAME folder.\nIf an instance with this name already exists, or use the \"delinstance\" script to get rid of all instance data." 10 70
+    exit
+  fi
 
-if [ $(getent group $NAME) ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title "Group \"$NAME\" already exists" --msgbox "A system group named \"$NAME\" already exists.\nInstance cannot be created.\nPlease choose another name or manually remove the \"$NAME\" group." 9 70
-  exit
-fi
+  if id "$NAME" > /dev/null 2>&1; then
+    dialog --backtitle 'Vilfredo new instance installation' --title "User \"$NAME\" already exists" --msgbox "A system user named \"$NAME\" already exists.\nInstance cannot be created.\nPlease choose another name or manually remove the \"$NAME\" user.\nIf an instance with this name already exists, or use the \"delinstance\" script to get rid of all instance data." 10 70
+    exit
+  fi
 
-######################
-# Install the database
-######################
-choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Vilfredo database" --radiolist "Would you like to create a new database or reuse an existing one?\nPlease consider connecting to external databases requires proper authorizations to be set up and usually MySQL and/or firewall configuration. This should be set up by an expert system administrator in order to prevent security issues.\nThe above warning does not apply if database is on this same server.\n\nSelecting the first option, if another database with the same name as the instance already exist, the procedure will be interrupted and no contents will be altered.\nIf you choose the second option, you will be prompted to enter database credentials in next screen." 20 76 16 \
-1 "Create a new database" on \
-2 "Connect to existing database" off \
-2>&1 >/dev/tty)
-if [ "$?" != "0" ]; then
-  stopInstallation
-fi
+  if [ $(getent group $NAME) ]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title "Group \"$NAME\" already exists" --msgbox "A system group named \"$NAME\" already exists.\nInstance cannot be created.\nPlease choose another name or manually remove the \"$NAME\" group.\nIf an instance with this name already exists, or use the \"delinstance\" script to get rid of all instance data." 10 70
+    exit
+  fi
 
-for choice in $choices
-do
-  case $choice in
-    1)
-      MYSQL_ROOT_PASSWORD=$(dialog --backtitle "Vilfredo new instance installation" --title "MySQL root password" --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
-      case $? in
-        1)
-          exit;;
-        255)
-          exit;;
-      esac
-      RESULT=`mysql --user=root --password=$MYSQL_ROOT_PASSWORD mysql -e 'SELECT user FROM user LIMIT 1'`
-      if [ "$?" == "1" ]; then
-        dialog --backtitle "Vilfredo new instance installation" --title 'Could not connect to MySQL server' --msgbox "An error occurred while attempting to connect to MySQL database server running on localhost.\nPlease check you entered the right password." 7 70
-        exit
-      fi
-      RESULT=`mysqlshow --user=root --password=$MYSQL_ROOT_PASSWORD | grep -v Wildcard | grep -o $NAME`
-      if [ "$RESULT" == "$NAME" ]; then
-        dialog --backtitle "Vilfredo new instance installation" --title 'Database "$NAME" already exists!' --msgbox "A MySQL database named \"$NAME\" already exists!\nDatabase has NOT been deleted. Please choose another name, or else manually perform a backup, or delete database, before proceeding.\nInstance cannot be created." 8 70
-        exit
-      fi
-      # Database will be created later
-      MYSQL_PARAMS=""
-      ;;
-    2)
-      exec 3>&1;
-      result=$(dialog --backtitle "Vilfredo new instance installation" --title "MySQL connection settings" \
-      --form "Please enter the credentials for the existing MySQL database.\nDouble check them: in case they are incorrect, the instance will not be able to connect to the database.\n\nThese will be stored into /etc/$NAME/settings.cfg file." 19 58 6 \
-      "MySQL Server:" 1 1 "localhost" 1 20 32 80 \
-      "Port:" 2 1 "3306" 2 20 32 5 \
-      "Username:" 3 1 "" 3 20 32 32 \
-      "Password:" 4 1 "" 4 20 32 32 \
-      "Database name:" 5 1 "" 5 20 32 60 2>&1 1>&3);
-      exitcode=$?;
-      exec 3>&-;
-      if [ "$exitcode" == "1" -o "$exitcode" == "255" ]; then
-        stopInstallation
-      fi
-      MYSQL_PARAMS=($(awk -F: '{$1=$1} 1' <<<"${result}"))
-      ;;
-  esac
+  # Request creating a new database or connecting to an existing one
+  choices=$(dialog --backtitle 'Vilfredo new instance installation' --title 'Vilfredo database' --radiolist 'Would you like to create a new database or reuse an existing one?\nPlease consider connecting to external databases requires proper authorizations to be set up and usually MySQL and/or firewall configuration. This should be set up by an expert system administrator in order to prevent security issues.\nThe above warning does not apply if database is on this same server.\n\nSelecting the first option, if another database with the same name as the instance already exist, the procedure will be interrupted and no contents will be altered.\nIf you choose the second option, you will be prompted to enter database credentials in next screen.' 20 76 16 \
+  1 'Create a new database' on \
+  2 'Connect to existing database' off \
+  2>&1 >/dev/tty)
+  if [ "$?" != '0' ]; then
+    stopInstallation
+  fi
+
+  for choice in $choices
+  do
+    case $choice in
+      1)
+        MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo new instance installation' --title 'MySQL root password' --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
+        case $? in
+          1)
+            # "Cancel" has been selected
+            exit;;
+          255)
+            # The ESC key has been pressed
+            exit;;
+        esac
+        RESULT=`mysql --user=root --password=$MYSQL_ROOT_PASSWORD mysql -e 'SELECT user FROM user LIMIT 1'`
+        if [ "$?" == "1" ]; then
+          dialog --backtitle 'Vilfredo new instance installation' --title 'Could not connect to MySQL server' --msgbox 'An error occurred while attempting to connect to MySQL database server running on localhost.\nPlease check you entered the right password.' 7 70
+          exit
+        fi
+        RESULT=`mysqlshow --user=root --password=$MYSQL_ROOT_PASSWORD | grep -v Wildcard | grep -o $NAME`
+        if [ "$RESULT" == "$NAME" ]; then
+          dialog --backtitle 'Vilfredo new instance installation' --title "Database \"$NAME\" already exists!" --msgbox "A MySQL database named \"$NAME\" already exists!\nDatabase has NOT been deleted. You will be then requested to choose another name for this instance.\n\nIf you want to get rid of an existing instance to reuse its name, select \"Cancel\" or hit ESC instead, then use the \"delinstance\" script to delete all of its data and configuration from this system." 11 70
+          case $? in
+            1)
+              # "Cancel" has been selected
+              exit;;
+            255)
+              # The ESC key has been pressed
+              exit;;
+          esac
+        else
+          # Break the loop asking for an instance name and proceed with installation
+          break 2
+        fi
+        # Database will be created later
+        MYSQL_PARAMS=''
+        ;;
+      2)
+        exec 3>&1;
+        result=$(dialog --backtitle 'Vilfredo new instance installation' --title 'MySQL connection settings' \
+        --form "Please enter the credentials for the existing MySQL database.\nDouble check them: in case they are incorrect, the instance will not be able to connect to the database.\n\nThese will be stored into /etc/$NAME/settings.cfg file." 19 58 6 \
+        'MySQL Server:' 1 1 'localhost' 1 20 32 80 \
+        'Port:' 2 1 '3306' 2 20 32 5 \
+        'Username:' 3 1 '' 3 20 32 32 \
+        'Password:' 4 1 '' 4 20 32 32 \
+        'Database name:' 5 1 '' 5 20 32 60 2>&1 1>&3);
+        exitcode=$?;
+        exec 3>&-;
+        # If "Cancel" has been selected or the ESC key has been pressed
+        if [ "$exitcode" == '1' -o "$exitcode" == '255' ]; then
+          stopInstallation
+        fi
+        MYSQL_PARAMS=($(awk -F: '{$1=$1} 1' <<<"${result}"))
+        # Break the loop asking for an instance name and proceed with installation
+        break 2
+        ;;
+    esac
+  done
 done
 
-DOMAIN=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the domain name to be assigned to this instance.\n\nDo not enter the \"www.\" prefix! It will be automatically prepended." 11 70 --output-fd 1)
-if [ "$?" != "0" ]; then
+DOMAIN=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox 'Please enter the domain name to be assigned to this instance.\n\nDo not enter the "www." prefix! It will be automatically prepended.' 11 70 --output-fd 1)
+if [ "$?" != '0' ]; then
   stopInstallation
 fi
 
-dialog --backtitle "Vilfredo new instance installation" --yesno "Do you want to also add the www.$DOMAIN subdomain name to the configuration?\nThis must have been already configured in the DNS.\nPlease check twice it actually exists, otherwise no SSL certificate will be generated and the website will remain unsecured (accessible through the HTTP protocol only).\nSuch a situation can only be repaired by adding the missing entry into the DNS, deleting and recreating the instance, or manually fixed." 14 70
+dialog --backtitle 'Vilfredo new instance installation' --yesno "Do you want to also add the www.$DOMAIN subdomain name to the configuration?\nThis must have been already configured in the DNS.\nPlease check twice it actually exists, otherwise no SSL certificate will be generated and the website will remain unsecured (accessible through the HTTP protocol only).\nSuch a situation can only be repaired by adding the missing entry into the DNS, deleting and recreating the instance, or manually fixed." 14 70
 NO_WWW_DOMAIN="$?"
 
-result=`git ls-remote --heads "https://github.com/fairdemocracy/vilfredo-core.git"|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
+result=`git ls-remote --heads 'https://github.com/fairdemocracy/vilfredo-core.git'|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
 branches=($(awk -F: '{$1=$1} 1' <<<"${result}"))
-options=""
+options=''
 counter=1
 for i in ${branches[@]}; do
-	if [ "$i" == "master" ]; then
-		options="$options $counter $i on"
-	else
-		options="$options $counter $i off"
-	fi
-	let counter=counter+1
+  if [ "$i" == 'master' ]; then
+    options="$options $counter $i on"
+  else
+    options="$options $counter $i off"
+  fi
+  let counter=counter+1
 done
 let rows=counter+8
-choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Choose vilfredo-core GIT branch" --radiolist "Please select which branch would you like to download from the \"vilfredo-core\" GitHub repository:" $rows 76 16 $options 2>&1 >/dev/tty)
-if [ "$?" != "0" ]; then
-	stopInstallation
+choices=$(dialog --backtitle 'Vilfredo new instance installation' --title 'Choose vilfredo-core GIT branch' --radiolist 'Please select which branch would you like to download from the "vilfredo-core" GitHub repository:' $rows 76 16 $options 2>&1 >/dev/tty)
+if [ "$?" != '0' ]; then
+  stopInstallation
 fi
 for choice in $choices
 do
-	CORE_BRANCH=${branches[$choice - 1]}
+  CORE_BRANCH=${branches[$choice - 1]}
 done
 
-result=`git ls-remote --heads "https://github.com/fairdemocracy/vilfredo-client.git"|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
+result=`git ls-remote --heads 'https://github.com/fairdemocracy/vilfredo-client.git'|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
 branches=($(awk -F: '{$1=$1} 1' <<<"${result}"))
-options=""
+options=''
 counter=1
 for i in ${branches[@]}; do
-	if [ "$i" == "master" ]; then
-		options="$options $counter $i on"
-	else
-		options="$options $counter $i off"
-	fi
-	let counter=counter+1
+  if [ "$i" == 'master' ]; then
+    options="$options $counter $i on"
+  else
+    options="$options $counter $i off"
+  fi
+  let counter=counter+1
 done
 let rows=counter+8
-choices=$(dialog --backtitle "Vilfredo new instance installation" --title "Choose vilfredo-client GIT branch" --radiolist "Please select which branch would you like to download from the \"vilfredo-client\" GitHub repository:" $rows 76 16 $options 2>&1 >/dev/tty)
-if [ "$?" != "0" ]; then
-	stopInstallation
+choices=$(dialog --backtitle 'Vilfredo new instance installation' --title 'Choose vilfredo-client GIT branch' --radiolist 'Please select which branch would you like to download from the "vilfredo-client" GitHub repository:' $rows 76 16 $options 2>&1 >/dev/tty)
+if [ "$?" != '0' ]; then
+  stopInstallation
 fi
 for choice in $choices
 do
-	CLIENT_BRANCH=${branches[$choice - 1]}
+  CLIENT_BRANCH=${branches[$choice - 1]}
 done
 
-GOOGLE_CODE=$(dialog --backtitle "Vilfredo new instance installation" --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
+GOOGLE_CODE=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
 if [ "$?" != "0" ]; then
   quitInstallation
 fi
 
 exec 3>&1;
-result=$(dialog --backtitle "Vilfredo new instance installation" --title "Mail server settings" \
---form "Vilfredo needs a mail server in order to send notifications and other kind of messages to its users.\nNowadays, it has become increasingly difficult to send mail messages such a way which will not make them consider spam by major providers such as GMail or MSN.\nYou may set up your own mail server, but this could be rather difficult (also requires adding some keys to the DNS) and thus should be left to experienced system administrators only.\nAlternatively, you might as well resort to an external mail server, using SMTP authentication.\nIn this case, edit default values with your mail server credentials." 24 70 6 \
-"SMTP Server:" 1 1 "localhost" 1 30 34 80 \
-"Port:" 2 1 "25" 2 30 34 80 \
-"Username (or email address):" 3 1 "" 3 30 34 80 \
-"Authentication password:" 4 1 "" 4 30 34 80 2>&1 1>&3);
+result=$(dialog --backtitle 'Vilfredo new instance installation' --title 'Mail server settings' \
+--form 'Vilfredo needs a mail server in order to send notifications and other kind of messages to its users.\nNowadays, it has become increasingly difficult to send mail messages such a way which will not make them consider spam by major providers such as GMail or MSN.\nYou may set up your own mail server, but this could be rather difficult (also requires adding some keys to the DNS) and thus should be left to experienced system administrators only.\nAlternatively, you might as well resort to an external mail server, using SMTP authentication.\nIn this case, edit default values with your mail server credentials.' 24 70 6 \
+'SMTP Server:' 1 1 'localhost' 1 30 34 80 \
+'Port:' 2 1 '25' 2 30 34 80 \
+'Username (or email address):' 3 1 '' 3 30 34 80 \
+'Authentication password:' 4 1 '' 4 30 34 80 2>&1 1>&3);
 exitcode=$?;
 exec 3>&-;
-
-if [ "$exitcode" == "1" -o "$exitcode" == "255" ]; then
+# If "Cancel" has been selected or the ESC key has been pressed
+if [ "$exitcode" == '1' -o "$exitcode" == '255' ]; then
   stopInstallation
 fi
 
@@ -272,7 +292,7 @@ fi
 #####################
 sudo adduser --disabled-password --gecos "$NAME instance user" $NAME
 if [ "$?" == "1" ]; then
-  dialog --backtitle "Vilfredo new instance installation" --title "Cannot create system user and group" --msgbox "An error occurred while attempting to create system user or group.\nPlease try again later." 7 70
+  dialog --backtitle 'Vilfredo new instance installation' --title 'Cannot create system user and group' --msgbox 'An error occurred while attempting to create system user or group.\nPlease try again later.' 7 70
   deluser $NAME
   delgroup $NAME
   exit
@@ -284,7 +304,7 @@ sudo -u $NAME -s -- <<EOF
   git clone -b $CORE_BRANCH https://github.com/fairdemocracy/vilfredo-core.git
   echo "Downloading vilfredo-client $CLIENT_BRANCH repository..."
   git clone -b $CLIENT_BRANCH https://github.com/fairdemocracy/vilfredo-client.git
-  echo "Creating virtual environment..."
+  echo 'Creating virtual environment...'
   virtualenv vilfredo-ve --python=/usr/bin/pypy
   . vilfredo-ve/bin/activate
   pip install -U setuptools
@@ -308,7 +328,7 @@ sudo -u $NAME -s -- <<EOF
   pip install pyparsing==1.5.7
   pip install pydot==1.0.2
   deactivate
-  echo "Creating symbolic links..."
+  echo 'Creating symbolic links...'
   ln -sf /home/$NAME/vilfredo-client/static /home/$NAME/vilfredo-core/VilfredoReloadedCore/static
   ln -sf /home/$NAME/vilfredo-client/templates /home/$NAME/vilfredo-core/VilfredoReloadedCore/templates
 EOF
@@ -324,22 +344,22 @@ sudo -s -- <<EOF
 EOF
 # Configure "settings.cfg" (Vilfredo core settings)
 sudo -u $NAME wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/settings.cfg -O /etc/$NAME/settings.cfg
-if [ "$NO_WWW_DOMAIN" == "1" ]; then
+if [ "$NO_WWW_DOMAIN" == '1' ]; then
   sudo -u $NAME sed -i s/www.vilfredo.org/$DOMAIN/g /etc/$NAME/settings.cfg
 else
   sudo -u $NAME sed -i s/www.vilfredo.org/www.$DOMAIN/g /etc/$NAME/settings.cfg
 fi
 sudo -u $NAME -s -- <<EOF
-  sed -i "s/https/https/g" /etc/$NAME/settings.cfg
+  sed -i 's/https/https/g' /etc/$NAME/settings.cfg
   sed -i "s!home/vilfredo!home/$NAME!g" /etc/$NAME/settings.cfg
   sed -i "s!var/log/vilfredo/vilfredo-vr.log!var/log/$NAME/vr.log!g" /etc/$NAME/settings.cfg
   sed -i "s/MAIL_SERVER = 'localhost/MAIL_SERVER = '${SMTP_PARAMS[0]}/g" /etc/$NAME/settings.cfg
   sed -i "s/MAIL_PORT = 25/MAIL_PORT = ${SMTP_PARAMS[1]}/g" /etc/$NAME/settings.cfg
 EOF
-if [ "$SMTP_PARAMS[2]" != "" ]; then
+if [ "$SMTP_PARAMS[2]" != '' ]; then
   sudo -u $NAME sed -i "s/MAIL_USERNAME = None/MAIL_USERNAME = '${SMTP_PARAMS[2]}'/g" /etc/$NAME/settings.cfg
 fi
-if [ "$SMTP_PARAMS[3]" != "" ]; then
+if [ "$SMTP_PARAMS[3]" != '' ]; then
   sudo -u $NAME sed -i "s/MAIL_PASSWORD = None/MAIL_PASSWORD = '${SMTP_PARAMS[3]}'/g" /etc/$NAME/settings.cfg
 fi
 if [ -z $MYSQL_PARAMS ]; then
@@ -354,7 +374,7 @@ sudo -u $NAME -s -- <<EOF
 EOF
 # Configure "settings.js"
 sudo -u $NAME mv /home/$NAME/vilfredo-client/static/js/settings.js /etc/$NAME
-if [ "$NO_WWW_DOMAIN" == "1" ]; then
+if [ "$NO_WWW_DOMAIN" == '1' ]; then
   sudo -u $NAME sed -i s/127.0.0.1:8080/$DOMAIN/g /etc/$NAME/settings.js
 else
   sudo -u $NAME sed -i s/127.0.0.1:8080/www.$DOMAIN/g /etc/$NAME/settings.js
@@ -388,15 +408,15 @@ EOF
 echo "Configuring NGINX web server for new instance $NAME..."
 # Note: This folder exists only to allow SSL certificate validation
 sudo -u $NAME mkdir /home/$NAME/www
-if [ ! -f "/etc/nginx/dhparam.pem" ]; then
+if [ ! -f '/etc/nginx/dhparam.pem' ]; then
   sudo -s -- <<EOF
     openssl dhparam -out /etc/nginx/dhparam.pem 4096
     sudo chmod 600 /etc/nginx/dhparam.pem
 EOF
 fi
 
-if [ ! -f "/etc/nginx/snippets/ssl.conf" ]; then
-	mkdir -p /etc/nginx/snippets
+if [ ! -f '/etc/nginx/snippets/ssl.conf' ]; then
+  mkdir -p /etc/nginx/snippets
   sudo cat > /etc/nginx/snippets/ssl.conf <<EOF
 ssl on;
 ssl_dhparam               dhparam.pem;
@@ -412,7 +432,7 @@ add_header                Strict-Transport-Security "max-age=31536000";
 EOF
 fi
 # Compile domain list
-if [ "$NO_WWW_DOMAIN" == "1" ]; then
+if [ "$NO_WWW_DOMAIN" == '1' ]; then
   DOMAINS=$DOMAIN
 else
   DOMAINS="www.$DOMAIN $DOMAIN"
@@ -443,6 +463,7 @@ server {
     include uwsgi_params;
     uwsgi_pass unix:/tmp/uwsgi_$NAME.sock;
   }
+
   # Enables GZIP compression if not already enabled
   gzip on;
   gzip_disable "msie6";
@@ -453,11 +474,13 @@ server {
   gzip_http_version 1.1;
   gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
 
+  server_tokens off;
+
 }
 EOF
 
 # Note: This symbolic link is only needed if we wrote configuration in /etc/nginx/sites-available
-if [ -d "/etc/nginx/sites-enabled" ]; then
+if [ -d '/etc/nginx/sites-enabled' ]; then
   sudo ln -sf /etc/nginx/sites-available/$NAME.conf /etc/nginx/sites-enabled
 fi
 
@@ -494,7 +517,7 @@ EOF
 sudo -s -- <<EOF
   ln -sf /etc/uwsgi-pypy/apps-available/$NAME.ini /etc/uwsgi-pypy/apps-enabled
   echo "Restarting web services..."
-  service uwsgi-pypy reload
+  service uwsgi-pypy restart
   service nginx restart
 EOF
 
@@ -503,15 +526,15 @@ EOF
 #########################
 echo "Requesting a free SSL certificate for https://$DOMAIN"
 # Note: Only now that we've configured NGINX, we can request the certificate
-if [ "$NO_WWW_DOMAIN" == "1" ]; then
+if [ "$NO_WWW_DOMAIN" == '1' ]; then
   sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/vilfredo-client/static -d $DOMAIN
   RET="$?"
 else
   sudo /usr/local/letsencrypt/letsencrypt-auto certonly --webroot -w /home/$NAME/vilfredo-client/static -d $DOMAIN -d www.$DOMAIN
   RET="$?"
 fi
-if [ "$RET" == "1" ]; then
-	# Cannot configure HTTPS: disable it on configuration files
+if [ "$RET" == '1' ]; then
+  # Cannot configure HTTPS: disable it on configuration files
   sudo -u $NAME -s -- <<EOF
     sed -i s/https:/http:/g /etc/$NAME/settings.js
     sed -i s/https:/http:/g /etc/$NAME/settings.cfg
@@ -520,9 +543,9 @@ EOF
     sed -i s/  listen 443 ssl http2//g $NGINX_CONF/$NAME.conf
     sed -i s/  listen [::]:443 ssl http2//g $NGINX_CONF/$NAME.conf
 EOF
-  echo "Restarting web services..."
-  sudo service uwsgi-pypy reload
-  dialog --backtitle "Vilfredo new instance installation" --title "Cannot install SSL certificate" --msgbox "A problem occurred while attempting to obtain a free SSL certificate from Let's Encrypt.\nThe web site will run unsecured (with the HTTP protocol).\nPlease fix this problem manually, or otherwise delete and recreate the instance later." 8 70
+  echo 'Restarting web services...'
+  sudo service uwsgi-pypy restart
+  dialog --backtitle 'Vilfredo new instance installation' --title 'Cannot install SSL certificate' --msgbox "A problem occurred while attempting to obtain a free SSL certificate from Let's Encrypt.\nThe web site will run unsecured (with the HTTP protocol).\nPlease fix this problem manually, or otherwise delete and recreate the instance later." 8 70
 else
   sudo -u $NAME -s -- <<EOF
     sed -i s/http:/https:/g /etc/$NAME/settings.js
@@ -532,15 +555,18 @@ EOF
     sed -i s/#include/include/g $NGINX_CONF/$NAME.conf
     sed -i s/#ssl_/ssl_/g $NGINX_CONF/$NAME.conf
 EOF
-  echo "Restarting web services..."
-  sudo service uwsgi-pypy reload;service nginx restart
+  echo 'Restarting web services...'
+  sudo -s -- <<EOF
+service uwsgi-pypy restart
+service nginx restart
+EOF
 fi
 
 ###########################################################
 # Adding a cron job to automatically renew SSL certificates
 ###########################################################
-if [ ! -f "/etc/cron.monthly/letsencrypt" ]; then
-  echo "Adding cron job to automatically renew SSL certificates..."
+if [ ! -f '/etc/cron.monthly/letsencrypt' ]; then
+  echo 'Adding cron job to automatically renew SSL certificates...'
   sudo cat > /etc/cron.monthly/letsencrypt <<EOF
 #!/bin/sh
 service nginx stop
@@ -556,6 +582,18 @@ EOF
   sudo chmod 700 /etc/cron.monthly/letsencrypt
 fi
 
+##########################################################
+# Adds a folder containing symbolic links to all log files
+##########################################################
+sudo -u $NAME mkdir /home/$NAME/log
+sudo -s -- <<EOF
+  ln -s /var/log/$NAME/vr.log /home/$NAME/log/flask-vr.log
+  ln -s /var/log/nginx/$NAME/access.log /home/$NAME/log/nginx-access.log
+  ln -s /var/log/nginx/$NAME/error.log /home/$NAME/log/nginx-error.log
+  ln -s /var/log/uwsgi-pypy/app/$NAME.log /home/$NAME/log/uwsgi-pypy.log
+  chown -h $NAME:users /home/$NAME/log/*
+EOF
+
 #########################################################
 # Adding a script to keep website in sync with repository
 #########################################################
@@ -569,8 +607,8 @@ sudo -u $NAME git -C /home/$NAME/vilfredo-core checkout
 sudo -u $NAME git -C /home/$NAME/vilfredo-client checkout
 EOF
 sudo chmod u+x /home/$NAME/bin/checkout
-dialog --backtitle "Vilfredo new instance installation" --title 'GIT checkout script created' --yesno "An easy to execute script, named /home/$NAME/bin/checkout, has been created for you.\nThis can be manually invoked to update instance code downloading latest changes from the GIT repository.\nWould you like to configure a cron job, executed each hour, in order to automate the process and always keep the code in sync with latest changes?" 12 70
-if [ "$?" == "0" ]; then
+dialog --backtitle 'Vilfredo new instance installation' --title 'GIT checkout script created' --yesno "An easy to execute script, named /home/$NAME/bin/checkout, has been created for you.\nThis can be manually invoked to update instance code downloading latest changes from the GIT repository.\nWould you like to configure a cron job, executed each hour, in order to automate the process and always keep the code in sync with latest changes?\nThis can be performed automatically by this procedure." 13 70
+if [ "$?" == '0' ]; then
   sudo -s -- <<EOF
     ln -s /home/$NAME/bin/checkout /etc/cron.hourly/$NAME
     chmod 700 /etc/cron.hourly/$NAME
@@ -581,6 +619,6 @@ fi
 rm -rf $TMP
 
 # Display the successful install confirmation message
-dialog --backtitle "Vilfredo new instance installation" --title 'Vilfredo instance installation completed' --msgbox "A new Vilfredo instance named \"$NAME\" has been installed successfully!\nIf you have already configured DNS, you will find it at http://$DOMAIN/" 9 70
+dialog --backtitle 'Vilfredo new instance installation' --title 'Vilfredo instance installation completed' --msgbox "A new Vilfredo instance named \"$NAME\" has been installed successfully!\nIf you have already configured DNS, you will find it at http://$DOMAIN/" 9 70
 
 clear
