@@ -63,7 +63,7 @@ esac
 
 dialog --backtitle 'Vilfredo instance removal procedure' --title "Instance deletion in progress" --infobox "Please wait while instance is removed from the system.\n\nThis could require a while (web services will have to be restarted in the process). Do not hit CTRL+C in the process!" 6 70 --output-fd 1
 
-mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE $NAME;DROP USER $NAME@localhost"
+# mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE $NAME;DROP USER $NAME@localhost"
 
 sudo service uwsgi-pypy stop
 killall -9 uwsgi-pypy
