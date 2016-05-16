@@ -51,7 +51,7 @@ EOF
 fi
 sudo -s -- <<EOF
   apt-get update
-  apt-get -y install vim python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
+  apt-get -y install vim haveged python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
 EOF
 
 #############################################
@@ -91,9 +91,9 @@ fi
 VILFREDO_SECRET_KEY=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 VILFREDO_ENCRYPTION_SALT=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 
-####################
-# Request parameters
-####################
+#################################################
+# Request instance name and perform needed checks
+#################################################
 # If instance name has been specified on the command line, use it as default
 DEFAULT=$1
 
@@ -201,14 +201,30 @@ while true; do
   done
 done
 
-DOMAIN=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox 'Please enter the domain name to be assigned to this instance.\n\nDo not enter the "www." prefix! It will be automatically prepended.' 11 70 --output-fd 1)
-if [ "$?" != '0' ]; then
-  stopInstallation
-fi
+######################################
+# Request domain name for the instance
+######################################
+while true; do
+  DOMAIN=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox 'Please enter the domain name to be assigned to this instance.\n\nDo not enter the "www." prefix now! If you want to add it, please refer to next step.' 11 70 --output-fd 1)
+  if [ "$?" != '0' ]; then
+    stopInstallation
+  fi
+  # Check if there's another virtual host with the same exact domain name
+  # (as first domain in the NGINX server_name directive)
+  DOMAIN_EXISTS=`grep "server_name $DOMAIN" *`
+  if [ -z $DOMAIN_EXISTS ]; then
+    break
+  fi
+  dialog --backtitle 'Vilfredo new instance installation' --title 'Domain already existing' --msgbox 'There exists already another virtual host defined on the same domain.\nPlease choose a different domain name.' 7 70
+  echo "There exists already another virtual host defined on the same domain."
+done
 
 dialog --backtitle 'Vilfredo new instance installation' --yesno "Do you want to also add the www.$DOMAIN subdomain name to the configuration?\nThis must have been already configured in the DNS.\nPlease check twice it actually exists, otherwise no SSL certificate will be generated and the website will remain unsecured (accessible through the HTTP protocol only).\nSuch a situation can only be repaired by adding the missing entry into the DNS, deleting and recreating the instance, or manually fixed." 14 70
 NO_WWW_DOMAIN="$?"
 
+##################################################
+# Request code branch to be downloaded from GitHub
+##################################################
 result=`git ls-remote --heads 'https://github.com/fairdemocracy/vilfredo-core.git'|sed -r 's|^[a-z0-9]+\s+refs/heads/(.+)|\1|g'`
 branches=($(awk -F: '{$1=$1} 1' <<<"${result}"))
 options=''
@@ -253,11 +269,9 @@ do
   CLIENT_BRANCH=${branches[$choice - 1]}
 done
 
-GOOGLE_CODE=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
-if [ "$?" != "0" ]; then
-  quitInstallation
-fi
-
+##############################
+# Request mail server settings
+##############################
 exec 3>&1;
 result=$(dialog --backtitle 'Vilfredo new instance installation' --title 'Mail server settings' \
 --form 'Vilfredo needs a mail server in order to send notifications and other kind of messages to its users.\nNowadays, it has become increasingly difficult to send mail messages such a way which will not make them consider spam by major providers such as GMail or MSN.\nYou may set up your own mail server, but this could be rather difficult (also requires adding some keys to the DNS) and thus should be left to experienced system administrators only.\nAlternatively, you might as well resort to an external mail server, using SMTP authentication.\nIn this case, edit default values with your mail server credentials.' 24 70 6 \
@@ -274,11 +288,14 @@ fi
 
 SMTP_PARAMS=($(awk -F: '{$1=$1} 1' <<<"${result}"))
 
-EMAIL_SENDER=$(dialog --backtitle 'Vilfredo new instance installation' --title "System messages email sender" --inputbox "Please enter the email address which will be used as sender for all system generated messages.\nTo prevent messages from being marked as spam, the mail server should have been configured to digitally sign all email messages from that domain using DKIM, the DKIM public key should be uploaded to the DNS for the domain and a SPF record should be added to.\n\nIf you do not know how to proceed, it is strongly suggested to specify an email address on a domain which the selected SMTP server is already able to deliver messages from without errors." 16 80 admin$DOMAIN --output-fd 1)
+EMAIL_SENDER=$(dialog --backtitle 'Vilfredo new instance installation' --title "System messages email sender" --inputbox "Please enter the email address which will be used as sender for all system generated messages.\nTo prevent messages from being marked as spam, the mail server should have been configured to digitally sign all email messages from that domain using DKIM, the DKIM public key should be uploaded to the DNS for the domain and a SPF record should be added to.\n\nIf you do not know how to proceed, it is strongly suggested to specify an email address on a domain which the selected SMTP server is already able to deliver messages from without errors." 17 80 admin@$DOMAIN --output-fd 1)
 if [ "$?" != "0" ]; then
   quitInstallation
 fi
 
+###############################
+# Request Google Analytics code
+###############################
 GOOGLE_CODE=$(dialog --backtitle 'Vilfredo new instance installation' --inputbox "Please enter the Google unique identification code to track this website using Google Analytics.\nThis can be safely omitted and entered later by editing the following file:\n\n/home/$NAME/vilfredo-client/static/templates/analytics.template.html" 13 80 UA-XXXXXXXX-X --output-fd 1)
 if [ "$?" != "0" ]; then
   quitInstallation
@@ -552,8 +569,8 @@ if [ "$RET" == '1' ]; then
     sed -i s/https:/http:/g /etc/$NAME/settings.cfg
 EOF
   sudo -s -- <<EOF
-    sed -i s/  listen 443 ssl http2//g $NGINX_CONF/$NAME.conf
-    sed -i s/  listen [::]:443 ssl http2//g $NGINX_CONF/$NAME.conf
+    sed -i 's/  listen 443 ssl http2//' $NGINX_CONF/$NAME.conf
+    sed -i 's/  listen [::]:443 ssl http2//' $NGINX_CONF/$NAME.conf
 EOF
   echo 'Restarting web services...'
   sudo service uwsgi-pypy restart
