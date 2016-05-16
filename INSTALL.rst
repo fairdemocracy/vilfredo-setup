@@ -28,7 +28,7 @@ To download the procedure right to your server, first install ``wget`` then use 
 
     sudo apt-get install wget
     wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance
-    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delnstance
+    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
 
 If the ``sudo`` command is not present on the system, log in as root user and install it through:
 
