@@ -74,6 +74,7 @@ if [ "$NGINX_CONF" == "/etc/nginx/conf.d" ]; then
   sudo rm -rf \
 /etc/$NAME \
 /var/log/$NAME \
+/var/log/nginx/$NAME \
 /etc/cron.hourly/$NAME \
 /etc/nginx/conf.d/$NAME.conf \
 /etc/uwsgi-pypy/apps-enabled/$NAME.ini \
@@ -83,6 +84,7 @@ else
   sudo rm -rf \
 /etc/$NAME \
 /var/log/$NAME \
+/var/log/nginx/$NAME \
 /etc/cron.hourly/$NAME \
 /etc/nginx/sites-enabled/$NAME.conf \
 /etc/nginx/sites-available/$NAME.conf \
