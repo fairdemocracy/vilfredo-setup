@@ -51,7 +51,7 @@ EOF
 fi
 sudo -s -- <<EOF
   apt-get update
-  apt-get install vim python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
+  apt-get -y install vim python-virtualenv python-dev libmysqlclient-dev libsqlite3-0 graphviz git gcc sudo nginx ntpdate mysql-server postfix libjansson4 libmatheval1 libyaml-0-2 libzmq3 uuid-dev libcap-dev libssl-dev libssl-doc libpcre3-dev libpcrecpp0
 EOF
 
 #############################################
