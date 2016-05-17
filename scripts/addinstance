@@ -446,6 +446,7 @@ sudo -u $NAME -s -- <<EOF
   sed -i "s/secret_key/$VILFREDO_SECRET_KEY/g" /etc/$NAME/settings.cfg
   sed -i "s/vilfredo_salt/$VILFREDO_ENCRYPTION_SALT/g" /etc/$NAME/settings.cfg
   ln -sf /etc/$NAME/settings.cfg /home/$NAME/vilfredo-core/VilfredoReloadedCore
+  chmod o-r /etc/$NAME/settings.cfg
 EOF
 # Configure "settings.js"
 echo "$(date) Configuring /etc/$NAME/settings.js..." >> $LOGFILE
@@ -464,6 +465,7 @@ sudo chown -h $NAME /home/$NAME/vilfredo-client/static/js/settings.js
 echo "$(date) Configuring /etc/$NAME/logging_debug.cfg..." >> $LOGFILE
 sudo -u $NAME -s -- <<EOF
   wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/logging_debug.conf -O /etc/$NAME/logging_debug.conf --quiet
+  chmod o-r /etc/$NAME/logging_debug.cfg
   sed -i s!/var/log/vilfredo/vilfredo-vr.log!/var/log/$NAME/vr.log!g /etc/$NAME/logging_debug.conf
   ln -sf /etc/$NAME/logging_debug.conf /home/$NAME/vilfredo-core/VilfredoReloadedCore
   sed -i s/UA-XXXXXXXX-X/$GOOGLE_CODE/g /home/$NAME/vilfredo-client/static/templates/analytics.template.html
