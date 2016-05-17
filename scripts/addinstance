@@ -378,7 +378,7 @@ if [ "$SMTP_PARAMS[3]" != '' ]; then
   sudo -u $NAME sed -i "s/MAIL_PASSWORD = None/MAIL_PASSWORD = '${SMTP_PARAMS[3]}'/g" /etc/$NAME/settings.cfg
 fi
 if [ -z $MYSQL_PARAMS ]; then
-  sudo -u $NAME sed -i "s/vilfredo_mysql_password/$VILFREDO_MYSQL_PASSWORD/g" /etc/$NAME/settings.cfg
+  sudo -u $NAME sed -i "s!vilfredo:vilfredo_mysql_password@localhost/vilfredo!$NAME:$VILFREDO_MYSQL_PASSWORD@localhost/$NAME!g" /etc/$NAME/settings.cfg
 else
   sudo -u $NAME sed -i "s!mysql+mysqldb://vilfredo:vilfredo_mysql_password@localhost/vilfredo!mysql+mysqldb://${MYSQL_PARAMS[2]}:${MYSQL_PARAMS[3]}@${MYSQL_PARAMS[0]}/${MYSQL_PARAMS[4]}!g" /etc/$NAME/settings.cfg
 fi
