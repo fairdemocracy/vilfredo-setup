@@ -146,6 +146,11 @@ else
   rm -rf './vilfredo-tmp'
 fi
 
+# After a "delinstance", if we're still in deleted folder, procedure could break abruptly
+# with a "fatal: Unable to read current working directory"
+# To prevent this, cd to /home folder
+cd /home
+
 # Display the successful install confirmation message
 dialog --backtitle 'Vilfredo instance removal procedure' --title 'Vilfredo instance removal completed' --msgbox "The Vilfredo instance named \"$NAME\" has been completely removed from this server, together with all of its data and configuration files." 7 70
 #
