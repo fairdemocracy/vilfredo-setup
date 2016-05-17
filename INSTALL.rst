@@ -146,6 +146,8 @@ Install PHPMyAdmin:
 
 Open NGINX configuration file for the main domain (or another spare domain) and paste the following into a ``server`` block:
 
+.. code-block:: nginx
+
     location /phpmyadmin {
       alias /usr/share/phpmyadmin;
       index index.php;
