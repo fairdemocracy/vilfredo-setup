@@ -32,7 +32,7 @@ fi
 # Welcome screen
 ################
 dialog --backtitle 'Vilfredo instance removal procedure' --yesno 'This procedure removes all traces of a Vilfredo instance on the server.\nIt can be useful to remove tests or wrong installations.\nNote: All data will be deleted!\nThis will not uninstall any Debian package.\nWould you like to continue?' 11 70
-if [ "$?" != "0" ]; then
+if [ "$?" != '0' ]; then
   exit
 fi
 
@@ -41,8 +41,8 @@ fi
 ####################
 while true; do
   # If instance name has been specified on the command line, use it as default
-  NAME=$(dialog --backtitle 'Vilfredo instance removal procedure' --inputbox "Please enter the name of the instance to be deleted." 8 70 $1 --output-fd 1)
-  if [ "$?" != "0" ]; then
+  NAME=$(dialog --backtitle 'Vilfredo instance removal procedure' --inputbox 'Please enter the name of the instance to be deleted.' 8 70 $1 --output-fd 1)
+  if [ "$?" != '0' ]; then
     exit
   fi
   if [ -z $NAME ]; then
@@ -54,10 +54,10 @@ while true; do
   fi
 done
 
-MYSQL_SETTINGS=`grep -e "@localhost/$NAME?" settings.cfg`
+MYSQL_SETTINGS=`grep -e "@localhost/$NAME?" /etc/$NAME/settings.cfg`
 
 if [ -z $MYSQL_SETTINGS ]; then
-  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Informative message' --msgbox 'The specified instance connects to an external MySQL database.\nThus, you can stay assured it will not be deleted from this procedure.\nIf you want to actually delete the database too, you will have to perform this by hand.' 8 70
+  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Informative message' --msgbox 'The specified instance connects to an external MySQL database.\nThus, you can stay assured it will not be deleted from this procedure.\nIf you want to actually delete the database too, you will have to perform this by hand.' 9 70
 else
   while true; do
     MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo instance removal procedure' --title 'MySQL root password' --clear --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and delete the database together with all of its data.' 9 70 --output-fd 1)
@@ -85,15 +85,17 @@ else
   done
 fi
 
-dialog --backtitle 'Vilfredo instance removal procedure' --yesno "We are about to delete the MySQL server named \"$NAME\" on this server.\nWould you like to continue?\n\nIf database contain important data, you should first make a backup.\nPress the ESC key to abort uninstallation in this case." 11 70
-if [ "$?" != "0" ]; then
+dialog --backtitle 'Vilfredo instance removal procedure' --yesno "We are about to delete the MySQL server named \"$NAME\" on this server. If database contain important data, you should interrupt the procedure and make a backup.\n\nWould you like to continue anyway?" 9 70
+if [ "$?" != '0' ]; then
   exit
 fi
 
 dialog --backtitle 'Vilfredo instance removal procedure' --title 'Instance deletion in progress' --infobox 'Please wait while instance is removed from the system.\n\nThis could require a while (web services will have to be restarted in the process). Do not hit CTRL+C in the process!' 6 70 --output-fd 1
 
-if [ ! -z $MYSQL_ROOT_PASSWORD ]
+# If database is on same server, and actually exists, delete it
+if [ ! -z $MYSQL_ROOT_PASSWORD ]; then
   mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE $NAME;DROP USER $NAME@localhost"
+fi
 
 sudo service uwsgi-pypy stop
 killall -9 uwsgi-pypy
