@@ -57,7 +57,7 @@ done
 MYSQL_SETTINGS=`grep -e "@localhost/$NAME?" settings.cfg`
 
 if [ -z $MYSQL_SETTINGS ]; then
-  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Informative message' --msgbox 'The specified instance connects to an external MySQL database.\nThus, you can stay assured it will not be deleted from this procedure.\nIf you want to actually delete the database too, you will have to perform this by hand.' 8 70
+  dialog --backtitle 'Vilfredo instance removal procedure' --title 'Informative message' --msgbox 'The specified instance connects to an external MySQL database.\nThus, you can stay assured it will not be deleted from this procedure.\nIf you want to actually delete the database too, you will have to perform this by hand.' 9 70
 else
   while true; do
     MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo instance removal procedure' --title 'MySQL root password' --clear --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and delete the database together with all of its data.' 9 70 --output-fd 1)
