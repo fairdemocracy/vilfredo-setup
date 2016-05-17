@@ -106,6 +106,8 @@ while true; do
 
   if [ -z $NAME ]; then
     dialog --backtitle 'Vilfredo new instance installation' --title 'Empty instance name' --msgbox 'The name of the instance to be created has not been specified.\nPlease go back and try again.' 7 70
+  elif [[ "$NAME" == *'.'* ]]; then
+    dialog --backtitle 'Vilfredo new instance installation' --title 'Invalid instance name' --msgbox 'The name of the instance cannot contain dots, due to system limitations.\nPlease go back and try again.' 7 70
   elif [ -d "/etc/$NAME" ]; then
     dialog --backtitle 'Vilfredo new instance installation' --title 'Configuration folder already exists!' --msgbox "A configuration folder named /etc/$NAME already exists!\nInstance cannot be created.\nPlease choose another name, or alternatively exit the procedure and manually remove the /etc/$NAME folder, then try again.\nIf an instance with this name already exists, you may use the \"delinstance\" script to get rid of all instance data." 12 70
   elif [ -d "/etc/cron.hourly/$NAME" ]; then
