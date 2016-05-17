@@ -85,14 +85,16 @@ else
   done
 fi
 
-dialog --backtitle 'Vilfredo instance removal procedure' --yesno "We are about to delete the MySQL server named \"$NAME\" on this server. If database contain important data, you should interrupt the procedure and make a backup.\n\nWould you like to continue anyway?" 9 70
-if [ "$?" != '0' ]; then
-  exit
+# If database is on same server, and actually exists, delete it
+if [ ! -z $MYSQL_ROOT_PASSWORD ]; then
+  dialog --backtitle 'Vilfredo instance removal procedure' --yesno "We are about to delete the MySQL server named \"$NAME\" on this server. If database contain important data, you should interrupt the procedure and make a backup.\n\nWould you like to continue anyway?" 9 70
+  if [ "$?" != '0' ]; then
+    exit
+  fi
 fi
 
 dialog --backtitle 'Vilfredo instance removal procedure' --title 'Instance deletion in progress' --infobox 'Please wait while instance is removed from the system.\n\nThis could require a while (web services will have to be restarted in the process). Do not hit CTRL+C in the process!' 6 70 --output-fd 1
 
-# If database is on same server, and actually exists, delete it
 if [ ! -z $MYSQL_ROOT_PASSWORD ]; then
   mysql --user=root --password=$MYSQL_ROOT_PASSWORD -e "DROP DATABASE $NAME;DROP USER $NAME@localhost"
 fi
@@ -146,3 +148,4 @@ fi
 
 # Display the successful install confirmation message
 dialog --backtitle 'Vilfredo instance removal procedure' --title 'Vilfredo instance removal completed' --msgbox "The Vilfredo instance named \"$NAME\" has been completely removed from this server, together with all of its data and configuration files." 7 70
+#
