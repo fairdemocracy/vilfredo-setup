@@ -139,7 +139,7 @@ while true; do
       case $choice in
         1)
           while true; do
-            MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo new instance installation' --title 'MySQL root password' --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 9 70 --output-fd 1)
+            MYSQL_ROOT_PASSWORD=$(dialog --backtitle 'Vilfredo new instance installation' --title 'MySQL root password' --insecure --passwordbox 'Please enter the password for the MySQL "root" user, which is needed in order to connect to the server and create the database.' 10 70 --output-fd 1)
             case $? in
               1)
                 # "Cancel" has been selected
