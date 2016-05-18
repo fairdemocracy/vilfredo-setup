@@ -18,18 +18,15 @@ A production instance of Vilfredo can be installed on an already existing server
 
 We're assuming you're running a ``Debian/GNU Linux`` based distribution (such as Debian stable or Ubuntu). Vilfredo could likely run on other flavours of Linux, but these are not covered by this guide.
 
-WARNING: Do not attempt to run installation if other web servers such as Apache are running on the same server (unless you know how to set up NGINX to run on a different IP address or port). Two web servers on the same IP address and port will conflict and prevent installation of each other.
+WARNING: Do not attempt to run installation if other web servers such as Apache are running on the same server (unless you know how to set up NGINX to run on a different IP address or port). Two web servers on the same IP address and port will likely conflict and prevent installation of each other.
 
-Download the ``scripts/addinstance`` script, make it executable with ``chmod +x addinstance`` and run it.
-
-To download the procedure right to your server, first install ``wget`` then use it to get files:
+Download the ``scripts/addinstance`` script right to your server, through ``wget``, and run it:
 
 .. code:: sh
 
     sudo apt-get install wget
     wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance
-    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
-    chmod 700 addinstance delinstance
+    chmod 700 addinstance
 
 If the ``sudo`` command is not present on the system, log in as root user and install it through:
 
@@ -39,13 +36,38 @@ If the ``sudo`` command is not present on the system, log in as root user and in
 
 This requires being able to login to the server as root at least once.
 
+After running the "addinstance" procedure, you'll find a detailed installation log in ``/home/$INSTANCE/log/install.log`` file, where $INSTANCE is the name chosen for the instance.
+
 Disclaimer: The "addinstance" procedure, although automated, could rarely generate situations which need being fixed by a competent system administrator. Most times, these can be solved by rebooting the server. However, do not run it on an existing production server if you're not prepared handling such kind of events.
 
-Note: the ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
+Troubleshooting: In some rare cases, if a previous installation has been interrupted, the final restart of UWSGI-PyPy server could fail. The following message will be displayed:
 
-Now you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
+    uwsgi-pypy: no process found
+    Job for uwsgi-pypy.service failed. See 'systemctl status uwsgi-pypy.service' and 'journalctl -xn' for details.
 
-If you want to delete a Vilfredo instance together with all of its data, download the ``scripts/delinstance`` script, make it executable with ``chmod +x delinstance`` and run it.
+You will find the following in ``/home/$INSTANCE/log/install.log`` file:
+
+    uwsgi socket 0 bound to UNIX address /run/uwsgi-pypy/app/$INSTANCE/socket fd 3
+    error removing unix socket, unlink(): Operation not permitted [core/socket.c line 200]
+
+This can be easily solved by rebooting the server.
+
+The ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
+
+If everything worked, you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
+
+=============================
+Deleting an existing instance
+=============================
+
+If you want to delete a Vilfredo instance together with all of its data, you may download the ``scripts/delinstance`` script right to your server, through ``wget``, and run it:
+
+.. code:: sh
+
+    sudo apt-get install wget
+    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
+    chmod 700 delinstance
+    ./delinstance
 
 This procedure deletes all data associated to the instance. The database will be deleted only if it has the same name of the instance. If your instance connects to an external database, this won't be deleted when removing instance, thus no data will be lost.
 
@@ -145,7 +167,17 @@ Install PHPMyAdmin:
 
     sudo apt-get install phpmyadmin
 
-Open NGINX configuration file for the main domain (or another spare domain) and paste the following into a ``server`` block:
+(note: this will attempt to install Apache Web Server too, but it will later have to be removed to prevent conflicts with NGINX!).
+
+Open NGINX configuration file for the main domain or another spare domain. You'll find it in
+
+    /etc/nginx/conf.d/[instance_name].conf
+
+or
+
+    /etc/nginx/sites-available/[instance_name]
+
+Then paste the following into a ``server`` block (the part surronded by "server {" and "}"):
 
 .. code-block:: nginx
 
@@ -177,7 +209,7 @@ Now enter the following commands:
 .. code:: sh
 
     # Generates additional password to further protect PHPMyAdmin installation
-    sudo apt-get install apache2-utils
+    sudo apt-get install apache2-utils php5-fpm
     sudo htpasswd -c /etc/nginx/htpasswd root
     sudo chown www-data:www-data /etc/nginx/htpasswd
     sudo sed -i 's/user  nginx/user  www-data/g' /etc/nginx/nginx.conf
