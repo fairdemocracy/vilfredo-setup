@@ -244,6 +244,7 @@ DKIM is a sort of "digital signature" which is added to all email messages to en
 SPF is used to specify the list of IP addresses and servers which are allowed sending messages from a given domain. It does not require generating public-private key pairs. Just add a TXT record in the domain zone on DNS specifying the list of servers and IP addresses. Usually just adding something like:
 
 .. code:: sh
+
 	v=spf1 a mx ~all
 	
 in the TXT of the domain DNS will be enough.
