@@ -20,13 +20,6 @@ We're assuming you're running a ``Debian/GNU Linux`` based distribution (such as
 
 WARNING: Do not attempt to run installation if other web servers such as Apache are running on the same server (unless you know how to set up NGINX to run on a different IP address or port). Two web servers on the same IP address and port will likely conflict and prevent installation of each other.
 
-Download the ``scripts/addinstance`` script right to your server, through ``wget``, and run it:
-
-.. code:: sh
-
-    sudo apt-get install wget
-    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance
-    chmod 700 addinstance
 
 If the ``sudo`` command is not present on the system, log in as root user and install it through:
 
@@ -35,6 +28,17 @@ If the ``sudo`` command is not present on the system, log in as root user and in
     apt-get install sudo
 
 This requires being able to login to the server as root at least once.
+
+Download the ``scripts/addinstance`` script right to your server, through ``wget``, and run it:
+
+.. code:: sh
+
+    sudo apt-get install dialog
+    sudo apt-get install wget
+    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance
+    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
+    chmod 700 addinstance delinstance
+
 
 After running the "addinstance" procedure, you'll find a detailed installation log in ``/home/$INSTANCE/log/install.log`` file, where $INSTANCE is the name chosen for the instance.
 
@@ -50,7 +54,7 @@ You will find the following in ``/home/$INSTANCE/log/install.log`` file:
     uwsgi socket 0 bound to UNIX address /run/uwsgi-pypy/app/$INSTANCE/socket fd 3
     error removing unix socket, unlink(): Operation not permitted [core/socket.c line 200]
 
-This can be easily solved by rebooting the server.
+This can be easily solved by rebooting the server; On Digital Ocean this means turning off and then on the droplet.
 
 The ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
 
@@ -237,7 +241,13 @@ Alternatively, if an external SMTP server with authentication is not available, 
 
 DKIM is a sort of "digital signature" which is added to all email messages to ensure they had been originated by a server in the domain of the sender. A public-private key has to be generated on the server, then a dedicated daemon (for instance OpenDKIM) will take care of generating a digital signature using those keys, adding it to the message headers. The public key must also be added to a TXT record in the domain zone on DNS.
 
-SPF is used to specify the list of IP addresses and servers which are allowed sending messages from a given domain. It does not require generating public-private key pairs. Just add a TXT record in the domain zone on DNS specifying the list of servers and IP addresses.
+SPF is used to specify the list of IP addresses and servers which are allowed sending messages from a given domain. It does not require generating public-private key pairs. Just add a TXT record in the domain zone on DNS specifying the list of servers and IP addresses. Usually just adding something like:
+
+.. code:: sh
+
+	v=spf1 a mx ~all
+	
+in the TXT of the domain DNS will be enough.
 
 This part has not been included in the automated installation procedure because a manual part is involved (adding records into the DNS). If you do not feel comfortable setting up a mail server, just create an account on an external mail server and configure Vilfredo to use it to send mail instead.
 
@@ -267,7 +277,7 @@ First of all, install Postfix and OpenDKIM on your server:
     sudo chown -R opendkim:opendkim /etc/dkim
     sudo chmod -R o-r,o-w,o-x /etc/dkim
     # WARNING: Do not mistype this - do not enter ">" instead of ">>" or you'll erase Postfix configuration!
-    sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/postfix-dkim.conf -O /etc/postfix/postfix-dkim.conf
+    sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/postfix-dkim.conf -O /etc/postfix/postfix-dkim.conf
     sudo cat /etc/postfix/postfix-dkim.conf >> /etc/postfix/main.cf
     sudo rm /etc/postfix/postfix-dkim.conf
     sudo sed -i s/#myorigin/myorigin/g /etc/postfix/main.cf
