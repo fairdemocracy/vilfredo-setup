@@ -241,7 +241,12 @@ Alternatively, if an external SMTP server with authentication is not available, 
 
 DKIM is a sort of "digital signature" which is added to all email messages to ensure they had been originated by a server in the domain of the sender. A public-private key has to be generated on the server, then a dedicated daemon (for instance OpenDKIM) will take care of generating a digital signature using those keys, adding it to the message headers. The public key must also be added to a TXT record in the domain zone on DNS.
 
-SPF is used to specify the list of IP addresses and servers which are allowed sending messages from a given domain. It does not require generating public-private key pairs. Just add a TXT record in the domain zone on DNS specifying the list of servers and IP addresses.
+SPF is used to specify the list of IP addresses and servers which are allowed sending messages from a given domain. It does not require generating public-private key pairs. Just add a TXT record in the domain zone on DNS specifying the list of servers and IP addresses. Usually just adding something like:
+
+.. code:: sh
+	v=spf1 a mx ~all
+	
+in the TXT of the domain DNS will be enough.
 
 This part has not been included in the automated installation procedure because a manual part is involved (adding records into the DNS). If you do not feel comfortable setting up a mail server, just create an account on an external mail server and configure Vilfredo to use it to send mail instead.
 
