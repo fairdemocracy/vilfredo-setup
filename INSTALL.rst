@@ -274,14 +274,28 @@ First of all, install Postfix and OpenDKIM on your server:
     sudo service opendkim restart
     sudo service postfix restart
 
-Now get the contents of the ``/etc/dkim/keys/vilfredo.org/default.txt`` file (or whatever, depending from the domain name chosen) and copy its contents to the domain zone file in the DNS.
-If you DNS is externally managed (you do not have access to the configuration files but only to a web-based interface):
+Now get the contents of the ``/etc/dkim/keys/vilfredo.org/default.txt`` file (or whatever, depending from the domain name chosen) and copy its contents to the domain zone file in the DNS. Here's how to proceed:
+
+.. code:: sh
+
+    scp root@server:/etc/dkim/keys/vilfredo.org/default.txt .
+
+always replacing ``vilfredo.org`` with the domain name. Then pick up the part between parentheses, strip quotes, spaces and new lines and copy and paste it into the DNS zone for the domain name. For instance:
+
+    ( "v=DKIM1; k=rsa; s=email; "
+    "p=MIGfMA0GCSqGSIb3DQE4pk3ITfqcFifEodZJBBgQCw4vP/IB+2e2xM4LsOvM6tye2AQUBB8GNADCBiQKHNCG4E9xyY9OZyd4Orwo5yjyY3f/XPCqHkyxJuW5vAje9kug/DE2OfGrCmZG2evz+2Y66sXK9SVhQijYSAk2+/Z9ysthk7/Un6mGz7gCq3bs2WesKxPEQ/AQva2fAypBvwIDAQAB" )
+
+becomes (this is only an example and does not correspond to any actual valid key):
+
+    v=DKIM1;k=rsa;s=email;p=MIGfMA0GCSqGSIb3DQE4pk3ITfqcFifEodZJBBgQCw4vP/IB+2e6xM4LsOvM8tye2AQUBB8GNADCViQKHNCG4E9xyY9OZyd4Orwo5yjyY2f/XPCqHnyxJuW5vAje9kug/DE2OfGrCmZG2evz+4Y66sXK9SVhQijYSAk1+/Z9ysthk7/Un6mGz7gCq3bs2WesKxPEQ/AQva2fAypBvwIDAQAB
+
+To complete configuration, create a new TXT record for the domain, named ``default._domainkey``, containing this string. If you DNS is externally managed (you do not have access to the configuration files but only to a web-based interface):
 
 - add a new TXT type record
 - specify as name ``default._domainkey``
-- enter the text between quotes as value (without any additional quotes!)
+- enter the text above
 
-If you want to send mail from a subdomain (for instance demo.vilfredo.org) do not forget to add the TXT record containing the DKIM key to the subdomain instead of the main domain!
+If you want to send mail from a subdomain (for instance demo.vilfredo.org) do not forget to add the TXT record containing the DKIM key to the subdomain instead of the main domain! So in the example given, the name would become ``default._domainkey.demo.vilfredo.org``.
 
 Moreover, ensure the ``/etc/hostname`` and ``/etc/mailname`` files contains the server domain name (for instance vilfredo.org).
 
