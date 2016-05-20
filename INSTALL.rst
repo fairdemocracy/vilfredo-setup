@@ -36,11 +36,16 @@ If the ``sudo`` command is not present on the system, log in as root user and in
 
 This requires being able to login to the server as root at least once.
 
+If everything worked, you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
+
+Troubleshooting
+===============
+
+The "addinstance" procedure, although automated, could rarely generate situations which could need being fixed manually. Most times, these can be solved by rebooting the server. However, do not run the procedure on an existing production server if you're not prepared handling such kind of events.
+
 After running the "addinstance" procedure, you'll find a detailed installation log in ``/home/$INSTANCE/log/install.log`` file, where $INSTANCE is the name chosen for the instance.
 
-Disclaimer: The "addinstance" procedure, although automated, could rarely generate situations which need being fixed by a competent system administrator. Most times, these can be solved by rebooting the server. However, do not run it on an existing production server if you're not prepared handling such kind of events.
-
-Troubleshooting: In some rare cases, if a previous installation has been interrupted, the final restart of UWSGI-PyPy server could fail. The following message will be displayed:
+In some rare cases, if a previous installation has been interrupted, the final restart of UWSGI-PyPy server could fail. The following message will be displayed:
 
     uwsgi-pypy: no process found
     Job for uwsgi-pypy.service failed. See 'systemctl status uwsgi-pypy.service' and 'journalctl -xn' for details.
@@ -52,9 +57,34 @@ You will find the following in ``/home/$INSTANCE/log/install.log`` file:
 
 This can be easily solved by rebooting the server.
 
-The ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
+A detailed log file of each running instance is accessible at ``/home/$INSTANCE/log/uwsgi-pypy.log`` where $INSTANCE is the name chosen for the instance. This is a symbolic link automatically created by the installation procedure to the corresponding UWSGI-PyPy subfolder, for convenience. Open a separate terminal and enter:
 
-If everything worked, you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
+.. code:: sh
+
+    tail -f /home/$INSTANCE/log/uwsgi-pypy.log
+
+to follow the file in real time (being able to scroll it back to view previous contents). Or enter
+
+.. code:: sh
+
+    tail -n 200 /home/$INSTANCE/log/uwsgi-pypy.log
+
+to display the latest 200 rows of the file (the value "200" can be edited at your convenience).
+
+Installing more than one instance on a single server could require a great deal of memory, due to the use of PyPy in place of CPython. Problems could arise, and be rather difficult to debug (manifesting themselves as missing packages, where the package is perfectly installed, for instance). In this case, we suggest configuring one instance for server, and only attempt multiple installations on servers with at least 2Gb of physical RAM.
+
+When Vilfredo code is modified, new packages could be required to run the application. We cannot unfortunately execute the ``python setup.py develop`` command inside the virtual environment, due to the use of PyPy, so extra packages will have to be installed manually, as follows:
+
+.. code:: sh
+
+    cd /home/$NAME
+    . vilfredo-ve/bin/activate
+    pip install [package_name]
+    deactivate
+
+If package seems to be already installed, but cannot be imported nevertheless, this could mask an Out of Memory error. Before attempting to debug code or import the package, check this does not occur on other instances, with enough memory.
+
+The ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html`` file could cause JavaScript errors in some Vilfredo versions - in this case, just rename it to ``/home/$INSTANCE/vilfredo-client/static/templates/analytics.template.html.old`` to prevent the webserver from serving it.
 
 =============================
 Deleting an existing instance
