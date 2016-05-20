@@ -36,7 +36,7 @@ If the ``sudo`` command is not present on the system, log in as root user and in
 
 This requires being able to login to the server as root at least once.
 
-If everything worked, you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar. There could be other issues to be solved - you might have a look at the ``/var/log/$INSTANCE/vilfredo-vr.log`` for more information.
+If everything worked, you should be able to access the Vilfredo installation by entering the server IP address into your browser location bar.
 
 Troubleshooting
 ===============
