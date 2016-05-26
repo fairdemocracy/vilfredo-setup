@@ -289,7 +289,7 @@ First of all, install Postfix and OpenDKIM on your server:
     sudo echo "default._domainkey.vilfredo.org  vilfredo.org:default:/etc/dkim/keys/vilfredo.org/default" > /etc/dkim/keytable
     sudo echo "vilfredo.org  default._domainkey.vilfredo.org" > /etc/dkim/signingtable
     sudo mkdir -p /etc/dkim/keys/vilfredo.org
-    sudo cd /etc/dkim/keys/vilfredo.org
+    cd /etc/dkim/keys/vilfredo.org
     sudo opendkim-genkey -r -d vilfredo.org
     sudo mv /etc/dkim/keys/vilfredo.org/default.private /etc/dkim/keys/vilfredo.org/default
     sudo chmod 600 /etc/dkim/keys/vilfredo.org/default
