@@ -297,7 +297,7 @@ First of all, install Postfix and OpenDKIM on your server:
     sudo chown -R opendkim:opendkim /etc/dkim
     sudo chmod -R o-r,o-w,o-x /etc/dkim
     # WARNING: Do not mistype this - do not enter ">" instead of ">>" or you'll erase Postfix configuration!
-    sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/postfix-dkim.conf -O /etc/postfix/postfix-dkim.conf
+    sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/postfix-dkim.conf -O /etc/postfix/postfix-dkim.conf
     sudo cat /etc/postfix/postfix-dkim.conf >> /etc/postfix/main.cf
     sudo rm /etc/postfix/postfix-dkim.conf
     sudo sed -i s/#myorigin/myorigin/g /etc/postfix/main.cf
