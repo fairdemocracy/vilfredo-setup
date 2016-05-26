@@ -1,0 +1,87 @@
+#!/bin/bash
+##########################################################################
+# Vilfredo preparation script
+# Developed by Pietro Speroni di Fenizio
+# version 1.0
+# 26/05/2016, 
+# Released under Affero General Public License
+##########################################################################
+function quitInstallation {
+  dialog --backtitle 'Vilfredo preparation script' --title 'Interrupted by user' --msgbox 'The installation procedure has been interrupted.\nNothing has been changed on server.' 6 70
+  exit
+}
+
+
+if [ ! -x '/usr/bin/sudo' ]; then
+    if [ "$EUID" -ne 0 ]; then          
+        echo 'The "sudo" program must be installed in order to proceed.\nPlease run this program as root or install it , with the following command:\n\napt-get install sudo'          
+    else
+        echo 'The "sudo" program must be installed in order to proceed.\nI will try to install it as root, with the following command:\n\napt-get install sudo'  
+        apt-get install sudo
+    fi
+fi
+
+if [ ! -x '/usr/bin/sudo' ]; then
+  exit
+fi
+
+if [ ! -x '/usr/bin/dialog' ]; then
+    sudo apt-get install dialog
+fi
+
+EMAIL_SERVER=$(dialog --backtitle 'Vilfredo preparation script' --title "System messages email sender" --inputbox "Please enter the email server which will be used as sender" 17 80  --output-fd 1)
+if [ "$?" != "0" ]; then
+  quitInstallation
+fi
+
+
+sudo apt-get update
+sudo apt-get dist-upgrade
+sudo apt-get autoremove --purge
+
+
+if [ ! -x '/usr/bin/wget' ]; then
+    sudo apt-get install wget
+fi
+
+
+rm ./addinstance
+wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance
+chmod 700 addinstance
+
+rm ./delinstance
+wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
+chmod 700 delinstance
+
+sudo apt-get install postfix opendkim opendkim-tools
+
+sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance -O /etc/opendkim.conf
+
+sudo mkdir /etc/dkim
+sudo echo "localhost [::1]" > /etc/dkim/domains
+
+sudo echo $EMAIL_SERVER >> /etc/dkim/domains
+
+
+sudo echo "default._domainkey.$EMAIL_SERVER  $EMAIL_SERVER:default:/etc/dkim/keys/$EMAIL_SERVER/default" > /etc/dkim/keytable
+sudo echo "$EMAIL_SERVER  default._domainkey.$EMAIL_SERVER" > /etc/dkim/signingtable
+sudo mkdir -p /etc/dkim/keys/$EMAIL_SERVER
+cd /etc/dkim/keys/$EMAIL_SERVER
+
+sudo opendkim-genkey -r -d $EMAIL_SERVER
+sudo mv /etc/dkim/keys/$EMAIL_SERVER/default.private /etc/dkim/keys/$EMAIL_SERVER/default
+sudo chmod 600 /etc/dkim/keys/$EMAIL_SERVER/default
+
+sudo chown -R opendkim:opendkim /etc/dkim
+sudo chmod -R o-r,o-w,o-x /etc/dkim
+# WARNING: Do not mistype this - do not enter ">" instead of ">>" or you'll erase Postfix configuration!
+sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/postfix-dkim.conf -O /etc/postfix/postfix-dkim.conf
+sudo cat /etc/postfix/postfix-dkim.conf >> /etc/postfix/main.cf
+sudo rm /etc/postfix/postfix-dkim.conf
+sudo sed -i s/#myorigin/myorigin/g /etc/postfix/main.cf
+sudo service opendkim restart
+sudo service postfix restart
+
+echo "now take this value and use it to change the DNS" /etc/dkim/keys/$EMAIL_SERVER/default.txt
+
+cd
