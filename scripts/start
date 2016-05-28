@@ -1,0 +1,14 @@
+#!/bin/bash
+##########################################################################
+# Vilfredo start
+# Developed by Pietro Speroni di Fenizio
+# version 1.0
+# 26/05/2016, 
+# Released under Affero General Public License
+##########################################################################
+
+
+apt-get install sudo
+sudo apt-get install wget
+wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/signmail
+chmod +700 signmail
