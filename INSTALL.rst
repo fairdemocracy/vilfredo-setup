@@ -247,9 +247,9 @@ Now enter the following commands:
     # Creates log folder for PHPMyAdmin installation
     sudo mkdir /var/log/nginx/phpmyadmin
     # Enables OpCache to accelerate PHP scripts execution
-    sudo sed -i s/;opcache.enable=0/opcache.enable=1/g /etc/php5/fpm/php.ini
-    sudo sed -i s/;opcache.save_comments=1/opcache.save_comments=0/g /etc/php5/fpm/php.ini
-    sudo sed -i s/;opcache.fast_shutdown=0/opcache.fast_shutdown=1/g /etc/php5/fpm/php.ini
+    sudo sed -i 's/;opcache.enable=0/opcache.enable=1/g' /etc/php5/fpm/php.ini
+    sudo sed -i 's/;opcache.save_comments=1/opcache.save_comments=0/g' /etc/php5/fpm/php.ini
+    sudo sed -i 's/;opcache.fast_shutdown=0/opcache.fast_shutdown=1/g' /etc/php5/fpm/php.ini
     sudo service php5-fpm restart
     sudo service nginx restart
 
