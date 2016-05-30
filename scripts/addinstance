@@ -668,7 +668,7 @@ EOF
 ###########################################################
 # Adding a cron job to automatically renew SSL certificates
 ###########################################################
-if [ ! -f '/etc/cron.monthly/letsencrypt' ]; then
+if [ ! -f '/etc/cron.weekly/letsencrypt' ]; then
   echo 'Adding a weekly cron job to automatically renew SSL certificates...'
   echo "$(date) Adding a weekly cron job to automatically renew SSL certificates..." >> $LOGFILE
   sudo cat > /etc/cron.weekly/letsencrypt <<EOF
@@ -683,7 +683,7 @@ if [ "$LE_STATUS" != 0 ]; then
   exit 1
 fi
 EOF
-  sudo chmod 700 /etc/cron.monthly/letsencrypt
+  sudo chmod 700 /etc/cron.weekly/letsencrypt
 fi
 
 ######################################
