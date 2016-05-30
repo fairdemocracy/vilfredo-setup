@@ -53,6 +53,11 @@ rm ./delinstance
 wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/delinstance
 chmod 700 delinstance
 
+rm ./changedomain.sh
+wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/changedomain.sh
+chmod 700 changedomain.sh
+
+
 sudo apt-get install postfix opendkim opendkim-tools
 
 sudo wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/addinstance -O /etc/opendkim.conf
@@ -82,6 +87,7 @@ sudo sed -i s/#myorigin/myorigin/g /etc/postfix/main.cf
 sudo service opendkim restart
 sudo service postfix restart
 
-echo "now take this value and use it to change the DNS" /etc/dkim/keys/$EMAIL_SERVER/default.txt
+INSTRUCTIONS=$(more /etc/dkim/keys/test.vilfredo.org/default.txt)
+echo "now take this value and use it to change the DNS: $INSTRUCTIONS" 
 
 cd
