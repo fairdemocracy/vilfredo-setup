@@ -11,6 +11,107 @@ Just download the ``scripts/install.sh`` script, make it executable running ``ch
 The procedure has been written for Debian GNU/Linux, but can be easily adapted for other Linux distributions, replacing the part installing required packages.
 
 ===================================
+Full install on Digital Ocean
+===================================
+
+As Digital Ocean is the kind of system on which Vilfredo is being developed right now, we are going to give the instructions for it separately. As it is much simpler than everything else.
+
+===================================
+Starting with a Virgin Server
+===================================
+
+Create a new Droplet. Debian 8.3 x64 is the OS on which it has been tested so far. If you find it works with other servers please let us know. For a small server with just one instance usually a 512 MB is enough. Select also IPv6.
+
+Chose as the hostname of the droplet the domain name you will run the server. This is important as Digital ocean uses the hostname to set up the reverse dns. And if you chose a different hostname from the name of the server the mail from the instance might be sent to spam, or worse refused.
+
+Click on Create. Receive the IPv4, and IPv6 and immediately set up the DNS connecting the IPv4 and the IPv6 to that name. It is important that this has spread before running the installation. It use to take a few hours, but now it is pretty much immediate (when the DNS are in Dreamhost at least).
+
+ssh into the server as root, change the password. Then run: 
+
+    apt-get install sudo
+    sudo apt-get install wget
+    wget https://raw.githubusercontent.com/fairdemocracy/vilfredo-setup/master/scripts/start
+    chmod +x start
+    ./start
+
+from this moment everything else is quite automatic. Start will download the other program needed and preare them. The next one to run is 
+
+    ./signmail
+
+This will require you to go back to the DNS to add the TXT information for the DNS. Then install the first instance:
+
+    ./addinstance
+
+And then you will need to add phpmyadmin (see below). Only at that point you can run the system.
+
+===================================
+Starting with a Snapshot of an Existing Server, with the same domain name
+===================================
+
+This is very simple. A snapshot will generally be set to work with a specific branch and a specific domain name. You only need to create droplet from the snapshot and then define the DNS for the IPv4 and the IPv6. Don't forget to add the TXT info getting it following the instructions under the /etc/dkim/keys/$DOMAINNAME/default.txt
+
+===================================
+Starting with a Snapshot of an Existing Server changing the domain name
+===================================
+
+If you want to change the domain name from a specific snapshot start creating a droplet from a snapshot. And define the DNS for it as if with the new domain. Then once the info of the DNS has propagated, run
+
+    ./changedomain.sh
+
+everything else is automatic.
+
+===================================
+Starting with a Snapshot of an Existing Server changing branch
+===================================
+
+If you want to change branch and you do not have a snapshot of that specific branch a possible way is to install a system with a branch, and then run 
+
+    ./delinstance
+    
+and then run
+
+    ./addinstance
+    
+At which point you will need to open NGINX configuration file for the new domain.
+
+    /etc/nginx/conf.d/[instance_name].conf
+
+Then paste the following into a ``server`` block (the part surronded by "server {" and "}"):
+
+.. code-block:: nginx
+
+    location /phpmyadmin {
+      alias /usr/share/phpmyadmin;
+      index index.php;
+      try_files $uri $uri/ index.php$is_args$args =404;
+      access_log /var/log/nginx/phpmyadmin/access.log;
+      error_log /var/log/nginx/phpmyadmin/error.log;
+      auth_basic "PHPMyAdmin";
+      auth_basic_user_file /etc/nginx/htpasswd;
+      # Do not remove this - it is not redundant
+      location ~ \.(ico|css|js|gif|jpg|png)$ {
+        expires max;
+        log_not_found off;
+      }
+      location ^~ /phpmyadmin/(libraries|setup/lib) { deny all; return 444; }
+      # Pass the PHP scripts to FastCGI server
+      location ~* ^/phpmyadmin/(.+\.php)$ {
+        fastcgi_pass unix:/var/run/php5-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME /usr/share/phpmyadmin/$1;
+        include fastcgi_params;
+      }
+    }
+
+Now enter the following commands:
+
+.. code:: sh
+
+    sudo service nginx restart
+
+This is similar to what is needed to install phpmyadmin, but some parts are missing. If you need to install phpmyadmin from zero follow the complete instructions below.
+
+===================================
 Full install on a public web server
 ===================================
 
